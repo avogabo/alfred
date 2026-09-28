@@ -78,6 +78,18 @@ type ApplyCorrectionRequest struct {
 	RelativePathOverride string `json:"relative_path_override,omitempty"`
 }
 
+type ReviewListItem struct {
+	SourceNZBPath string                   `json:"source_nzb_path"`
+	State         winston.ItemState        `json:"state"`
+	Confidence    winston.MatchConfidence  `json:"confidence"`
+	Metadata      winston.ItemMetadata     `json:"metadata"`
+	ProposedPath  string                   `json:"proposed_path"`
+	Reason        string                   `json:"reason"`
+	Candidates    []winston.CandidateMatch `json:"candidates,omitempty"`
+	QueueID       int                      `json:"queue_id,omitempty"`
+	Status        string                   `json:"status,omitempty"`
+}
+
 func New(
 	cfg config.Config,
 	settings *config.SettingsStore,
@@ -271,21 +283,31 @@ func (s *Server) handleReviewItems(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 		return
 	}
+	s.sendReviewItems(w)
+}
+
+func (s *Server) sendReviewItems(w http.ResponseWriter) {
 	state := s.winstonApp.State()
 	if state == nil {
 		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
 		return
 	}
-	items := make([]winston.ReviewListItem, 0, len(state.Data.Imported))
+	items := make([]ReviewListItem, 0, len(state.Data.Imported))
 	for source, rec := range state.Data.Imported {
-		items = append(items, winston.ReviewListItem{
+		reason := ""
+		var candidates []winston.CandidateMatch
+		if rec.Preview != nil {
+			reason = rec.Preview.Reason
+			candidates = rec.Preview.Candidates
+		}
+		items = append(items, ReviewListItem{
 			SourceNZBPath: source,
 			State:         rec.State,
 			Confidence:    rec.Confidence,
 			Metadata:      rec.Metadata,
 			ProposedPath:  rec.RelativePath,
-			Reason:        rec.Reason,
-			Candidates:    rec.Candidates,
+			Reason:        reason,
+			Candidates:    candidates,
 			QueueID:       rec.QueueID,
 			Status:        rec.Status,
 		})
@@ -316,14 +338,20 @@ func (s *Server) handleReviewItem(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "item not found")
 		return
 	}
-	writeJSON(w, http.StatusOK, winston.ReviewListItem{
+	reason := ""
+	var candidates []winston.CandidateMatch
+	if rec.Preview != nil {
+		reason = rec.Preview.Reason
+		candidates = rec.Preview.Candidates
+	}
+	writeJSON(w, http.StatusOK, ReviewListItem{
 		SourceNZBPath: source,
 		State:         rec.State,
 		Confidence:    rec.Confidence,
 		Metadata:      rec.Metadata,
 		ProposedPath:  rec.RelativePath,
-		Reason:        rec.Reason,
-		Candidates:    rec.Candidates,
+		Reason:        reason,
+		Candidates:    candidates,
 		QueueID:       rec.QueueID,
 		Status:        rec.Status,
 	})
@@ -464,14 +492,12 @@ func (s *Server) handleReviewRescan(w http.ResponseWriter, r *http.Request) {
 			Status:       "detected",
 			State:        preview.State,
 			Confidence:   preview.Confidence,
-			Reason:       preview.Reason,
 			Metadata:     preview.Metadata,
-			Candidates:   preview.Candidates,
 			Preview:      preview,
 		}
 	}
 	_ = state.Save()
-	s.handleReviewItems(w, r)
+	s.sendReviewItems(w)
 }
 
 func (s *Server) handleFileBotStatus(w http.ResponseWriter, r *http.Request) {

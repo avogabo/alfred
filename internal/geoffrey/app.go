@@ -30,16 +30,6 @@ func New(cfg config.Config, plexClient *plex.Client, tmdbClient *tmdb.Client) (*
 }
 
 func (a *App) Start() {
-	if !a.plex.Configured() {
-		log.Printf("geoffrey: plex is not configured yet")
-		return
-	}
-	libs, err := a.plex.Libraries()
-	if err != nil {
-		log.Printf("geoffrey: warning: plex libraries check failed: %v", err)
-	} else {
-		log.Printf("geoffrey: ready, detected %d plex libraries", len(libs))
-	}
 	if a.memory.Data.UserPreferences.DefaultMovieLibrary == "" {
 		a.memory.Data.UserPreferences.DefaultMovieLibrary = a.cfg.PlexDefaultLibrary
 	}
@@ -50,7 +40,22 @@ func (a *App) Start() {
 
 	a.StartSchedulers()
 	if a.cfg.TelegramBotToken != "" {
-		go a.StartTelegram()
+		go func() {
+			if err := a.RunTelegram(); err != nil {
+				log.Printf("geoffrey: telegram error: %v", err)
+			}
+		}()
+	}
+
+	if !a.plex.Configured() {
+		log.Printf("geoffrey: plex is not configured yet, waiting for settings")
+		return
+	}
+	libs, err := a.plex.Libraries()
+	if err != nil {
+		log.Printf("geoffrey: warning: plex libraries check failed: %v", err)
+	} else {
+		log.Printf("geoffrey: ready, detected %d plex libraries", len(libs))
 	}
 }
 
