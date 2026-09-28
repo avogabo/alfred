@@ -35,6 +35,12 @@ func (p *ImportProcessor) BuildPreview(sourceNZB string, meta ItemMetadata) *Ite
 	preview.Candidates = candidates
 
 	preview.ProposedPath = p.buildPathForPreview(sourceNZB, preview)
+	if preview.ResolverMethod == "filebot" {
+		preview.Confidence = ConfidenceHigh
+		if preview.Reason == "" || preview.Reason == "name_parse" {
+			preview.Reason = "filebot_match"
+		}
+	}
 	if preview.Confidence == ConfidenceLow {
 		preview.State = StateNeedsReview
 	} else {

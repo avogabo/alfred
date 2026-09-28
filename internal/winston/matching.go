@@ -12,11 +12,11 @@ type Matcher struct{}
 func NewMatcher() *Matcher { return &Matcher{} }
 
 var (
-	reEpisodeA = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*(?P<season>\d{1,2})x(?P<episode>\d{1,2})$`)
-	reEpisodeB = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*[. _-]*S(?P<season>\d{1,2})E(?P<episode>\d{1,2})(?:\s*\((?P<year>\d{4})\))?$`)
-	reSeasonA  = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*Temporada\s*(?P<season>\d{1,2})$`)
-	reSeasonB  = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*\((?P<year>\d{4})\)\s*Season\s*(?P<season>\d{1,2})$`)
-	reMovie    = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*\((?P<year>\d{4})\)$`)
+	reEpisodeA = regexp.MustCompile(`(?i)^(?P<title>.+?)(?:\s*\((?P<year>\d{4})\))?\s*[. _-]*(?P<season>\d{1,2})x(?P<episode>\d{1,2})(?:[^0-9]|$)`)
+	reEpisodeB = regexp.MustCompile(`(?i)^(?P<title>.+?)(?:\s*\((?P<year>\d{4})\))?\s*[. _-]*S(?P<season>\d{1,2})E(?P<episode>\d{1,2})(?:[^0-9]|$)`)
+	reSeasonA  = regexp.MustCompile(`(?i)^(?P<title>.+?)(?:\s*\((?P<year>\d{4})\))?\s*[. _-]*(?:Temporada|Season)\s*[. _-]*(?P<season>\d{1,2})(?:[^0-9]|$)`)
+	reSeasonB  = regexp.MustCompile(`(?i)^(?P<title>.+?)(?:\s*\((?P<year>\d{4})\))?\s*[. _-]*(?:Temporada|Season)\s*[. _-]*(?P<season>\d{1,2})(?:[^0-9]|$)`)
+	reMovie    = regexp.MustCompile(`(?i)^(?P<title>.+?)\s*(?:\((?P<year>(?:19|20)\d{2})\)|(?P<year_noparen>(?:19|20)\d{2}))(?:\s+[^a-z0-9]|\s+(?:2160p|1080p|720p|uhd|4k|bluray|web|h264|x264|x265|hevc)|$)`)
 )
 
 func (m *Matcher) Resolve(meta ItemMetadata, sourceNZB string) (ItemMetadata, MatchConfidence, []CandidateMatch, string) {
@@ -37,6 +37,9 @@ func (m *Matcher) Resolve(meta ItemMetadata, sourceNZB string) (ItemMetadata, Ma
 		if parsed.Kind == "series" && parsed.Season > 0 && parsed.Episode == 0 {
 			reason = "title_year_season_parse"
 			score = 74
+		} else if parsed.Kind == "movie" {
+			reason = "title_year_movie_parse"
+			score = 80
 		}
 		candidates := []CandidateMatch{{
 			Label:  parsed.Title,
@@ -83,7 +86,7 @@ func parseSeasonPattern(base string, meta ItemMetadata) (ItemMetadata, bool) {
 		meta.Kind = "series"
 		meta.Year = parseIntOr(groups["year"], meta.Year)
 		meta.Season = parseIntOr(groups["season"], meta.Season)
-		return meta, meta.Title != "" && meta.Year > 0 && meta.Season > 0
+		return meta, meta.Title != "" && meta.Season > 0
 	}
 	return meta, false
 }
@@ -120,7 +123,11 @@ func parseMoviePattern(base string, meta ItemMetadata) (ItemMetadata, bool) {
 	}
 	meta.Title = cleanupTitle(groups["title"])
 	meta.Kind = "movie"
-	meta.Year = parseIntOr(groups["year"], meta.Year)
+	yearStr := groups["year"]
+	if yearStr == "" {
+		yearStr = groups["year_noparen"]
+	}
+	meta.Year = parseIntOr(yearStr, meta.Year)
 	return meta, meta.Title != "" && meta.Year > 0
 }
 

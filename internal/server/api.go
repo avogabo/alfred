@@ -483,7 +483,7 @@ func (s *Server) handleReviewRescan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	for _, nzbPath := range nzbs {
-		if _, ok := state.Data.Imported[nzbPath]; ok {
+		if rec, ok := state.Data.Imported[nzbPath]; ok && rec.Status == "completed" {
 			continue
 		}
 		preview := proc.BuildPreview(nzbPath, winston.ItemMetadata{})

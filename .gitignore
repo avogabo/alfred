@@ -5,4 +5,5 @@ web/dist
 .winston-state.json
 *.log
 alfred
+test-env/
 .DS_Store
