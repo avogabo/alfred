@@ -1,0 +1,36 @@
+services:
+  alfred:
+    image: ghcr.io/avogabo/alfred:latest
+    # O compilar localmente:
+    # build: .
+    container_name: alfred
+    restart: unless-stopped
+    ports:
+      - "8091:8091"
+    environment:
+      ALFRED_HTTP_LISTEN_ADDR: ":8091"
+      ALFRED_DATA_DIR: /config
+
+      # Plex compartido
+      PLEX_BASE_URL: http://192.168.1.100:32400
+      PLEX_TOKEN: TU_TOKEN_PLEX
+      PLEX_DEFAULT_LIBRARY: Películas
+
+      # Winston
+      WINSTON_SOURCE_ROOT: /data/nzb
+      WINSTON_ALTMOUNT_BASE_URL: http://192.168.1.100:8989
+      WINSTON_ALTMOUNT_API_KEY: TU_API_KEY_ALTMOUNT
+      WINSTON_DEFAULT_MODE: filebot
+      WINSTON_SLEEP_BETWEEN_IMPORTS: 3s
+      WINSTON_AUTOIMPORT_MEDIUM: "true"
+      WINSTON_FILEBOT_FORMAT_MOVIE: Peliculas/{plex}
+      WINSTON_FILEBOT_FORMAT_SERIES: Series/{plex}
+      WINSTON_FILEBOT_DB: TheMovieDB
+      FILEBOT_HOME: /config/filebot
+
+      # Geoffrey
+      TMDB_API_KEY: TU_API_KEY_TMDB
+      TZ: Europe/Madrid
+    volumes:
+      - /opt/alfred/config:/config
+      - /opt/alfred/nzb:/data/nzb
