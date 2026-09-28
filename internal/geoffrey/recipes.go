@@ -25,5 +25,8 @@ func (a *App) SaveRecipe(recipe memory.Recipe) error {
 }
 
 func (a *App) Recipes() []memory.Recipe {
+	if a == nil || a.memory == nil {
+		return nil
+	}
 	return append([]memory.Recipe{}, a.memory.Data.Recipes...)
 }

@@ -12,6 +12,11 @@ import (
 	"time"
 )
 
+type libraryCacheEntry struct {
+	items     []Video
+	timestamp time.Time
+}
+
 type Client struct {
 	baseURL     string
 	token       string
@@ -20,6 +25,8 @@ type Client struct {
 	http        *http.Client
 	mu          sync.RWMutex
 	machineID   string
+	cacheMu     sync.RWMutex
+	videoCache  map[string]libraryCacheEntry
 }
 
 type LibrariesResponse struct {
@@ -39,11 +46,37 @@ type IdentityResponse struct {
 
 func New(baseURL, token, pathFrom, pathTo string) *Client {
 	return &Client{
-		baseURL:  strings.TrimRight(baseURL, "/"),
-		token:    strings.TrimSpace(token),
-		pathFrom: pathFrom,
-		pathTo:   pathTo,
-		http:     &http.Client{Timeout: 20 * time.Second},
+		baseURL:    strings.TrimRight(baseURL, "/"),
+		token:      strings.TrimSpace(token),
+		pathFrom:   pathFrom,
+		pathTo:     pathTo,
+		http:       &http.Client{Timeout: 20 * time.Second},
+		videoCache: make(map[string]libraryCacheEntry),
+	}
+}
+
+func (c *Client) GetCachedVideos(sectionKey string) ([]Video, bool) {
+	c.cacheMu.RLock()
+	defer c.cacheMu.RUnlock()
+	if c.videoCache == nil {
+		return nil, false
+	}
+	entry, ok := c.videoCache[sectionKey]
+	if !ok || time.Since(entry.timestamp) > 3*time.Minute {
+		return nil, false
+	}
+	return entry.items, true
+}
+
+func (c *Client) SetCachedVideos(sectionKey string, items []Video) {
+	c.cacheMu.Lock()
+	defer c.cacheMu.Unlock()
+	if c.videoCache == nil {
+		c.videoCache = make(map[string]libraryCacheEntry)
+	}
+	c.videoCache[sectionKey] = libraryCacheEntry{
+		items:     items,
+		timestamp: time.Now(),
 	}
 }
 
