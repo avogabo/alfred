@@ -389,6 +389,12 @@ button, input, select, textarea {
   color: var(--text-muted);
 }
 
+.field small {
+  font-size: 0.725rem;
+  color: var(--text-dim);
+  line-height: 1.35;
+}
+
 input, select, textarea {
   background: rgba(10, 15, 26, 0.8);
   border: 1px solid var(--border-subtle);

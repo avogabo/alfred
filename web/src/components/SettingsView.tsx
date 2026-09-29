@@ -210,23 +210,30 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            <div className="field">
-              <span>Path From (Mapeo)</span>
-              <input
-                value={settings.plex_path_from}
-                onChange={(e) => setSettings({ ...settings, plex_path_from: e.target.value })}
-                placeholder="/home"
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="field">
+                <span>Ruta en Alfred (Path From)</span>
+                <input
+                  value={settings.plex_path_from}
+                  onChange={(e) => setSettings({ ...settings, plex_path_from: e.target.value })}
+                  placeholder="/media (o vacío)"
+                />
+                <small>Cómo ve Alfred tu carpeta multimedia.</small>
+              </div>
+              <div className="field">
+                <span>Ruta en Plex (Path To)</span>
+                <input
+                  value={settings.plex_path_to}
+                  onChange={(e) => setSettings({ ...settings, plex_path_to: e.target.value })}
+                  placeholder="/data/movies (o vacío)"
+                />
+                <small>Cómo ve Plex esa misma carpeta en su servidor.</small>
+              </div>
             </div>
-            <div className="field">
-              <span>Path To (Mapeo)</span>
-              <input
-                value={settings.plex_path_to}
-                onChange={(e) => setSettings({ ...settings, plex_path_to: e.target.value })}
-                placeholder="/media/biblioteca"
-              />
-            </div>
+            <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+              💡 <em>Traducción para refrescar contenido al instante en Plex. Déjalo vacío si Alfred y Plex usan las mismas rutas.</em>
+            </small>
           </div>
         </div>
 
@@ -270,23 +277,30 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-            <div className="field">
-              <span>Ruta en Winston</span>
-              <input
-                value={settings.altmount_path_from}
-                onChange={(e) => setSettings({ ...settings, altmount_path_from: e.target.value })}
-                placeholder="/data/nzb"
-              />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+              <div className="field">
+                <span>Ruta NZB en Alfred (Path From)</span>
+                <input
+                  value={settings.altmount_path_from}
+                  onChange={(e) => setSettings({ ...settings, altmount_path_from: e.target.value })}
+                  placeholder="/data/nzb (o vacío)"
+                />
+                <small>Carpeta donde Alfred lee los archivos .nzb.</small>
+              </div>
+              <div className="field">
+                <span>Ruta NZB en AltMount (Path To)</span>
+                <input
+                  value={settings.altmount_path_to}
+                  onChange={(e) => setSettings({ ...settings, altmount_path_to: e.target.value })}
+                  placeholder="/config/.nzbs (o vacío)"
+                />
+                <small>Ruta donde AltMount accede a esa misma carpeta.</small>
+              </div>
             </div>
-            <div className="field">
-              <span>Ruta en AltMount</span>
-              <input
-                value={settings.altmount_path_to}
-                onChange={(e) => setSettings({ ...settings, altmount_path_to: e.target.value })}
-                placeholder="/config/.nzbs"
-              />
-            </div>
+            <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.15rem' }}>
+              💡 <em>Permite que AltMount encuentre los NZB en su contenedor/máquina. Déjalo vacío si comparten la misma ruta.</em>
+            </small>
           </div>
 
           <div className="field">
