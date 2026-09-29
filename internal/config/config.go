@@ -96,7 +96,8 @@ func LoadConfig() Config {
 	autoImportMedium := getFirstEnvWithFallback("true", "ALFRED_AUTOIMPORT_MEDIUM", "WINSTON_AUTOIMPORT_MEDIUM") != "false"
 
 	dataDir := getFirstEnvWithFallback("/config", "ALFRED_DATA_DIR", "GEOFFREY_DATA_DIR")
-	filebotHome := getFirstEnvWithFallback("/config/filebot", "FILEBOT_HOME", "ALFRED_FILEBOT_HOME")
+	defaultFileBotHome := filepath.Join(dataDir, "filebot")
+	filebotHome := getFirstEnvWithFallback(defaultFileBotHome, "FILEBOT_HOME", "ALFRED_FILEBOT_HOME")
 
 	return Config{
 		HTTPListenAddr:      getFirstEnvWithFallback(":8091", "ALFRED_HTTP_LISTEN_ADDR", "WINSTON_HTTP_LISTEN_ADDR"),
@@ -275,11 +276,16 @@ func (s *SettingsStore) ApplyToConfig(cfg Config) Config {
 	if data.FileBotBinary != "" {
 		cfg.FileBotBinary = data.FileBotBinary
 	}
-	if data.FileBotHome != "" {
-		cfg.FileBotHome = data.FileBotHome
-	}
 	if data.DataDir != "" {
 		cfg.DataDir = data.DataDir
+	}
+	if data.FileBotHome != "" {
+		cfg.FileBotHome = data.FileBotHome
+		if cfg.FileBotHome == "/config/filebot" && cfg.DataDir != "" && cfg.DataDir != "/config" {
+			cfg.FileBotHome = filepath.Join(cfg.DataDir, "filebot")
+		}
+	} else if cfg.DataDir != "" {
+		cfg.FileBotHome = filepath.Join(cfg.DataDir, "filebot")
 	}
 	if data.TMDBAPIKey != "" {
 		cfg.TMDBAPIKey = data.TMDBAPIKey

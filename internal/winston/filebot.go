@@ -55,17 +55,41 @@ func (f *FileBotClient) Available(ctx context.Context) bool {
 func (f *FileBotClient) Status(ctx context.Context) FileBotStatus {
 	home := strings.TrimSpace(f.cfg.FileBotHome)
 	licensePresent := false
+
+	candidateDirs := []string{}
 	if home != "" {
-		if entries, err := os.ReadDir(home); err == nil {
+		candidateDirs = append(candidateDirs, home)
+	}
+	if f.cfg.DataDir != "" {
+		candidateDirs = append(candidateDirs, filepath.Join(f.cfg.DataDir, "filebot"))
+	}
+	candidateDirs = append(candidateDirs, "/config/filebot")
+
+	for _, dir := range candidateDirs {
+		dir = strings.TrimSpace(dir)
+		if dir == "" {
+			continue
+		}
+		if entries, err := os.ReadDir(dir); err == nil {
 			for _, entry := range entries {
 				name := strings.ToLower(entry.Name())
 				if strings.Contains(name, "license") || strings.HasSuffix(name, ".psm") {
 					licensePresent = true
+					home = dir
 					break
 				}
 			}
 		}
+		if _, err := os.Stat(filepath.Join(dir, "data", ".license")); err == nil {
+			licensePresent = true
+			home = dir
+			break
+		}
+		if licensePresent {
+			break
+		}
 	}
+
 	return FileBotStatus{
 		Enabled:        f.Enabled(),
 		Available:      f.Available(ctx),
