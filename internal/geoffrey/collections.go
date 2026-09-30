@@ -44,6 +44,34 @@ func (a *App) CreateCollectionFromTitles(sectionKey, collectionName string, titl
 }
 
 func (a *App) DeleteCollectionByName(sectionKey, collectionName string) error {
+	if sectionKey == "" || sectionKey == "all" {
+		libs, err := a.plex.Libraries()
+		if err != nil {
+			return err
+		}
+		deletedAny := false
+		var lastErr error
+		for _, lib := range libs {
+			if collections, err := a.plex.ListCollections(lib.Key); err == nil {
+				for _, item := range collections {
+					if strings.EqualFold(strings.TrimSpace(item.Title), strings.TrimSpace(collectionName)) {
+						if err := a.plex.DeleteCollection(item.RatingKey); err == nil {
+							deletedAny = true
+						} else {
+							lastErr = err
+						}
+					}
+				}
+			}
+		}
+		if deletedAny {
+			return nil
+		}
+		if lastErr != nil {
+			return lastErr
+		}
+		return fmt.Errorf("collection %q not found", collectionName)
+	}
 	collections, err := a.plex.ListCollections(sectionKey)
 	if err != nil {
 		return err

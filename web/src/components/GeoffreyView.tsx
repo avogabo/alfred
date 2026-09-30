@@ -25,7 +25,23 @@ type CollectionItem = {
   thumbUrl?: string
   artUrl?: string
 }
-type SearchItem = { ratingKey: string; title: string; type: string; year: number; thumb?: string; art?: string }
+type SearchItem = {
+  ratingKey: string
+  title: string
+  type: string
+  year: number
+  thumb?: string
+  art?: string
+  libraryKey?: string
+  libraryTitle?: string
+}
+
+type PosterSuggestion = {
+  url: string
+  source: string
+  label: string
+}
+
 type RecipeItem = {
   id: string
   name: string
@@ -75,6 +91,9 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
   const [recipes, setRecipes] = useState<RecipeItem[]>([])
   const [searchResults, setSearchResults] = useState<SearchItem[]>([])
   const [selectedTitles, setSelectedTitles] = useState<SearchItem[]>([])
+  const [posterSuggestions, setPosterSuggestions] = useState<PosterSuggestion[]>([])
+  const [loadingPosters, setLoadingPosters] = useState(false)
+  const [showPosterPicker, setShowPosterPicker] = useState(false)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [loading, setLoading] = useState(true)
   const [working, setWorking] = useState(false)
@@ -111,10 +130,14 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
         fetchJSON<{ items: LibraryItem[] }>('/api/geoffrey/libraries'),
         fetchJSON<{ items: RecipeItem[] }>('/api/geoffrey/recipes'),
       ])
-      setLibraries(librariesRes.items || [])
+      const rawLibs = librariesRes.items || []
+      const allLibs: LibraryItem[] = rawLibs.length > 1
+        ? [{ key: 'all', title: '🌟 Todas las bibliotecas (Películas + Series)', type: 'combinadas' }, ...rawLibs]
+        : rawLibs
+      setLibraries(allLibs)
       setRecipes(recipesRes.items || [])
-      if (librariesRes.items?.length > 0) {
-        setSelectedLibrary(librariesRes.items[0].key)
+      if (allLibs.length > 0) {
+        setSelectedLibrary(allLibs[0].key)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error conectando con Plex')
@@ -224,6 +247,11 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
           libraryKey: selectedLibrary,
           name: form.name,
           titles: selectedTitles.map((item) => item.title),
+          items: selectedTitles.map((item) => ({
+            title: item.title,
+            ratingKey: item.ratingKey,
+            libraryKey: item.libraryKey,
+          })),
           sourcePrompt: form.sourcePrompt,
           temporary: form.temporary,
           expiresAt: form.expiresAt,
@@ -235,12 +263,37 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
       setForm(emptyForm)
       setSearchResults([])
       setSelectedTitles([])
+      setPosterSuggestions([])
+      setShowPosterPicker(false)
       await loadCollections(selectedLibrary)
       onRefreshGlobalStatus?.()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error creando colección')
     } finally {
       setWorking(false)
+    }
+  }
+
+  async function fetchPosterSuggestions() {
+    const query = form.name.trim() || form.sourcePrompt.trim()
+    if (!query) {
+      onNotify?.('Escribe primero el nombre de la colección o un tema para sugerir pósters.', 'error')
+      return
+    }
+    try {
+      setLoadingPosters(true)
+      setShowPosterPicker(true)
+      const res = await fetchJSON<{ items: PosterSuggestion[] }>(
+        `/api/geoffrey/poster/suggestions?title=${encodeURIComponent(form.name)}&prompt=${encodeURIComponent(form.sourcePrompt)}`,
+      )
+      setPosterSuggestions(res.items || [])
+      if (!res.items || res.items.length === 0) {
+        onNotify?.('No se encontraron pósters automáticos para esta búsqueda.', 'error')
+      }
+    } catch (err) {
+      onNotify?.(err instanceof Error ? err.message : 'Error obteniendo pósters sugeridos', 'error')
+    } finally {
+      setLoadingPosters(false)
     }
   }
 
@@ -468,22 +521,133 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
                     placeholder="URL del póster..."
                     style={{ fontSize: '0.75rem', padding: '0.4rem' }}
                   />
-                  <label className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem', cursor: 'pointer' }}>
-                    <ImagePlus size={14} />
-                    <span>Subir imagen</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files?.[0]
-                        if (file) void uploadPoster(file)
-                      }}
-                    />
-                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.4rem' }}>
+                    <label className="btn btn-secondary" style={{ fontSize: '0.75rem', padding: '0.4rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                      <ImagePlus size={14} />
+                      <span>Subir</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) void uploadPoster(file)
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      style={{ fontSize: '0.75rem', padding: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}
+                      onClick={() => void fetchPosterSuggestions()}
+                      disabled={loadingPosters || (!form.name.trim() && !form.sourcePrompt.trim())}
+                      title="Generar opciones de póster con IA y TMDb"
+                    >
+                      {loadingPosters ? <LoaderCircle size={14} className="spin" /> : <Sparkles size={14} color="#38bdf8" />}
+                      <span>IA / TMDb</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
+
+            {/* Poster Suggestion Picker */}
+            {showPosterPicker && (
+              <div
+                className="glass-soft"
+                style={{
+                  padding: '1rem',
+                  borderRadius: '10px',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  background: 'rgba(15, 23, 42, 0.7)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={16} color="#38bdf8" />
+                    <strong style={{ fontSize: '0.9rem', color: '#f8fafc' }}>
+                      Pósters sugeridos para "{form.name || form.sourcePrompt}"
+                    </strong>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-ghost"
+                    style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                    onClick={() => setShowPosterPicker(false)}
+                  >
+                    Cerrar
+                  </button>
+                </div>
+
+                {loadingPosters && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', color: '#94a3b8', fontSize: '0.85rem', padding: '1.25rem 0', justifyContent: 'center' }}>
+                    <LoaderCircle size={18} className="spin" color="#38bdf8" />
+                    <span>Buscando sagas en TMDb y generando arte temático con IA...</span>
+                  </div>
+                )}
+
+                {!loadingPosters && posterSuggestions.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.75rem' }}>
+                    {posterSuggestions.map((sug, idx) => {
+                      const isSelected = form.posterUrl === sug.url
+                      return (
+                        <div
+                          key={idx}
+                          onClick={() => {
+                            setForm((prev) => ({ ...prev, posterUrl: sug.url, posterBase64: '' }))
+                            onNotify?.(`Póster seleccionado: ${sug.label}`, 'success')
+                          }}
+                          style={{
+                            cursor: 'pointer',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            border: isSelected ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+                            background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.4)' : undefined,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          <div style={{ height: '190px', width: '100%', overflow: 'hidden', background: '#090d16' }}>
+                            <img
+                              src={sug.url}
+                              alt={sug.label}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              loading="lazy"
+                            />
+                          </div>
+                          <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                            <span
+                              style={{
+                                fontSize: '0.65rem',
+                                padding: '0.1rem 0.35rem',
+                                borderRadius: '4px',
+                                background: sug.source.startsWith('tmdb') ? 'rgba(16, 185, 129, 0.25)' : 'rgba(168, 85, 247, 0.25)',
+                                color: sug.source.startsWith('tmdb') ? '#34d399' : '#d8b4fe',
+                                width: 'fit-content',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {sug.source.startsWith('tmdb') ? 'TMDb Oficial' : 'IA Pollinations'}
+                            </span>
+                            <span style={{ fontSize: '0.72rem', color: '#cbd5e1', lineHeight: '1.2' }}>
+                              {sug.label}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {!loadingPosters && posterSuggestions.length === 0 && (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.8rem', padding: '1rem' }}>
+                    No se encontraron sugerencias. Prueba con otro nombre o palabra clave.
+                  </div>
+                )}
+              </div>
+            )}
 
             {ideaSuggestion && (
               <div className="banner" style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
@@ -542,6 +706,21 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
                         <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
                           {item.year || 's/f'} · {isPicked ? '✓ Seleccionado' : '+ Añadir'}
                         </span>
+                        {(item.libraryTitle || item.type) && (
+                          <span
+                            style={{
+                              fontSize: '0.65rem',
+                              padding: '0.1rem 0.35rem',
+                              borderRadius: '4px',
+                              background: item.type === 'show' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(59, 130, 246, 0.25)',
+                              color: item.type === 'show' ? '#d8b4fe' : '#93c5fd',
+                              alignSelf: 'flex-start',
+                              marginTop: '0.2rem',
+                            }}
+                          >
+                            {item.libraryTitle || (item.type === 'show' ? 'Serie' : 'Película')}
+                          </span>
+                        )}
                       </button>
                     )
                   })}

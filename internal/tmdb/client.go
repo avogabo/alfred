@@ -42,6 +42,17 @@ type KeywordSearchResponse struct {
 	Results []Keyword `json:"results"`
 }
 
+type Collection struct {
+	ID           int    `json:"id"`
+	Name         string `json:"name"`
+	PosterPath   string `json:"poster_path"`
+	BackdropPath string `json:"backdrop_path"`
+}
+
+type CollectionSearchResponse struct {
+	Results []Collection `json:"results"`
+}
+
 type DiscoverMovieOptions struct {
 	WithGenres   []int
 	WithKeywords []int
@@ -83,6 +94,65 @@ func (c *Client) SearchMovie(query string) ([]Movie, error) {
 	}
 	return out.Results, nil
 }
+
+func (c *Client) SearchMulti(query string) ([]Movie, error) {
+	if !c.Enabled() || strings.TrimSpace(query) == "" {
+		return nil, nil
+	}
+	u := "https://api.themoviedb.org/3/search/multi"
+	q := url.Values{}
+	q.Set("api_key", c.apiKey)
+	q.Set("query", query)
+	q.Set("language", "es-ES")
+	q.Set("page", "1")
+	resp, err := c.http.Get(u + "?" + q.Encode())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("tmdb multi search failed: %s", resp.Status)
+	}
+	var out SearchMovieResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	for i := range out.Results {
+		if out.Results[i].Title == "" && out.Results[i].Name != "" {
+			out.Results[i].Title = out.Results[i].Name
+		}
+		if out.Results[i].Release == "" && out.Results[i].FirstAir != "" {
+			out.Results[i].Release = out.Results[i].FirstAir
+		}
+	}
+	return out.Results, nil
+}
+
+func (c *Client) SearchCollection(query string) ([]Collection, error) {
+	if !c.Enabled() || strings.TrimSpace(query) == "" {
+		return nil, nil
+	}
+	u := "https://api.themoviedb.org/3/search/collection"
+	q := url.Values{}
+	q.Set("api_key", c.apiKey)
+	q.Set("query", query)
+	q.Set("language", "es-ES")
+	q.Set("page", "1")
+	resp, err := c.http.Get(u + "?" + q.Encode())
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("tmdb collection search failed: %s", resp.Status)
+	}
+	var out CollectionSearchResponse
+	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out.Results, nil
+}
+
 
 func (c *Client) SearchKeyword(query string) ([]Keyword, error) {
 	if !c.Enabled() || strings.TrimSpace(query) == "" {

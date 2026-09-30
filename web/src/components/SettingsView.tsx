@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react'
 import {
+  BookOpen,
   Bot,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   FileCode,
   HardDrive,
+  Info,
   Save,
   Server,
   Settings2,
@@ -84,9 +88,54 @@ const defaultSettings: SettingsDTO = {
   time_zone: 'Europe/Madrid',
 }
 
+const filebotPresets = [
+  {
+    name: 'Plex Estándar (Recomendado)',
+    desc: 'Estructura oficial de Plex: Peliculas/{plex} y Series/{plex}',
+    movie: 'Peliculas/{plex}',
+    series: 'Series/{plex}',
+  },
+  {
+    name: 'Plex + Resolución y Códec',
+    desc: 'Incluye resolución y códec (ej. [1080p x264])',
+    movie: 'Peliculas/{plex.id} [{vf} {vc}]/{plex.name}',
+    series: 'Series/{plex.id} [{vf}]/{plex.name}',
+  },
+  {
+    name: 'Plex + Audio, HDR y Edición',
+    desc: 'Detalla HDR, resolución y códec de audio para cinéfilos',
+    movie: 'Peliculas/{ny}/{ny} - [{vf} {hdr} {ac}]',
+    series: "Series/{n}/Temporada {s.pad(2)}/{n} - {s00e00} - {t} [{vf} {hdr}]",
+  },
+  {
+    name: 'Carpetas por Inicial (A-Z)',
+    desc: 'Organiza por letra inicial para bibliotecas muy grandes',
+    movie: 'Peliculas/{n[0]}/{ny}/{ny}',
+    series: "Series/{n[0]}/{n}/Temporada {s.pad(2)}/{n} - {s00e00}",
+  },
+]
+
+const filebotTokens = [
+  { token: '{plex}', desc: 'Estructura recomendada estándar de Plex', example: 'Peliculas/Avatar (2009)/Avatar (2009)' },
+  { token: '{ny}', desc: 'Nombre y año del título', example: 'Inception (2010)' },
+  { token: '{n}', desc: 'Nombre del título o serie sin año', example: 'Breaking Bad' },
+  { token: '{y}', desc: 'Año de estreno', example: '2008' },
+  { token: '{s00e00}', desc: 'Temporada y episodio con 2 dígitos', example: 'S01E05' },
+  { token: '{s.pad(2)}', desc: 'Número de temporada con 2 dígitos', example: '01' },
+  { token: '{t}', desc: 'Título del episodio', example: 'Ozymandias' },
+  { token: '{vf}', desc: 'Resolución o formato de vídeo', example: '2160p, 1080p, 720p' },
+  { token: '{vc}', desc: 'Códec de vídeo', example: 'HEVC, x265, x264' },
+  { token: '{ac}', desc: 'Códec de audio', example: 'TrueHD, DTS-HD MA, EAC3' },
+  { token: '{channels}', desc: 'Canales de audio', example: '7.1, 5.1, 2.0' },
+  { token: '{hdr}', desc: 'Alto rango dinámico / HDR', example: 'Dolby Vision, HDR10, HDR' },
+  { token: '{source}', desc: 'Fuente de ripeo', example: 'BluRay, WEB-DL, HDTV' },
+  { token: '{group}', desc: 'Grupo de lanzamiento', example: 'FLUX, SPARKS' },
+]
+
 export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewProps) {
   const [settings, setSettings] = useState<SettingsDTO>(defaultSettings)
   const [filebotStatus, setFilebotStatus] = useState<FileBotStatus | null>(null)
+  const [showFilebotLegend, setShowFilebotLegend] = useState(false)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -208,6 +257,9 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
               onChange={(e) => setSettings({ ...settings, plex_default_library: e.target.value })}
               placeholder="Películas"
             />
+            <small style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+              💡 <em>Biblioteca de reserva inicial. En la pestaña Geoffrey puedes seleccionar libremente "🌟 Todas las bibliotecas" para incluir y combinar Películas y Series en la misma colección.</em>
+            </small>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
@@ -326,22 +378,74 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
             ) : null}
           </div>
 
-          <div className="field">
-            <span>Ruta del binario FileBot</span>
-            <input
-              value={settings.filebot_binary}
-              onChange={(e) => setSettings({ ...settings, filebot_binary: e.target.value })}
-              placeholder="/usr/local/bin/filebot"
-            />
+          {/* Docker Preinstalled Notice */}
+          <div className="glass-soft" style={{ padding: '0.75rem 0.9rem', borderLeft: '3px solid #6366f1', display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
+            <Info size={16} color="#818cf8" style={{ marginTop: '2px', flexShrink: 0 }} />
+            <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
+              <strong style={{ color: '#fff' }}>FileBot 5.1.6 ya está integrado dentro del contenedor Docker oficial de Alfred.</strong> No necesitas instalar Java ni enlazar binarios externos en tu host. Simplemente coloca tu archivo de licencia <code>license.psm</code> dentro de tu carpeta o volumen <code>/config/filebot/</code>.
+            </div>
           </div>
 
-          <div className="field">
-            <span>Directorio de datos (Licencia .psm)</span>
-            <input
-              value={settings.filebot_home}
-              onChange={(e) => setSettings({ ...settings, filebot_home: e.target.value })}
-              placeholder="/config/filebot"
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            <div className="field">
+              <span>Ruta del binario FileBot</span>
+              <input
+                value={settings.filebot_binary}
+                onChange={(e) => setSettings({ ...settings, filebot_binary: e.target.value })}
+                placeholder="/usr/local/bin/filebot"
+              />
+              <small>Por defecto en Docker: /usr/local/bin/filebot</small>
+            </div>
+
+            <div className="field">
+              <span>Directorio de datos (Licencia .psm)</span>
+              <input
+                value={settings.filebot_home}
+                onChange={(e) => setSettings({ ...settings, filebot_home: e.target.value })}
+                placeholder="/config/filebot"
+              />
+              <small>Ubicación de license.psm</small>
+            </div>
+          </div>
+
+          {/* Presets Selector */}
+          <div>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem', color: '#e2e8f0' }}>
+              ⚡ Plantillas de renombrado rápidas (Presets)
+            </span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+              {filebotPresets.map((preset) => {
+                const isActive = settings.filebot_movie_format === preset.movie && settings.filebot_series_format === preset.series
+                return (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{
+                      textAlign: 'left',
+                      padding: '0.5rem 0.75rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-start',
+                      gap: '0.2rem',
+                      border: isActive ? '1px solid #6366f1' : '1px solid var(--border-subtle)',
+                      background: isActive ? 'rgba(99, 102, 241, 0.15)' : undefined,
+                    }}
+                    onClick={() => {
+                      setSettings({
+                        ...settings,
+                        filebot_movie_format: preset.movie,
+                        filebot_series_format: preset.series,
+                      })
+                      onNotify?.(`Plantilla "${preset.name}" seleccionada. Haz clic en "Guardar Ajustes" para aplicarla.`, 'success')
+                    }}
+                  >
+                    <strong style={{ fontSize: '0.8rem', color: '#f8fafc' }}>{preset.name}</strong>
+                    <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>{preset.desc}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           <div className="field">
@@ -362,13 +466,72 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
             />
           </div>
 
+          {/* Toggle Legend */}
+          <div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                fontSize: '0.8rem',
+                color: '#818cf8',
+                padding: '0.35rem 0.5rem',
+                cursor: 'pointer',
+              }}
+              onClick={() => setShowFilebotLegend((prev) => !prev)}
+            >
+              <BookOpen size={14} />
+              <span>{showFilebotLegend ? 'Ocultar leyenda de sintaxis FileBot' : 'Ver leyenda de comandos y variables FileBot'}</span>
+              {showFilebotLegend ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+            </button>
+
+            {showFilebotLegend && (
+              <div
+                className="glass-soft"
+                style={{
+                  marginTop: '0.5rem',
+                  padding: '0.75rem',
+                  borderRadius: '8px',
+                  maxHeight: '260px',
+                  overflowY: 'auto',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.1)', color: '#94a3b8' }}>
+                      <th style={{ padding: '0.3rem 0.5rem' }}>Variable</th>
+                      <th style={{ padding: '0.3rem 0.5rem' }}>Significado</th>
+                      <th style={{ padding: '0.3rem 0.5rem' }}>Ejemplo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filebotTokens.map((item) => (
+                      <tr key={item.token} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
+                        <td style={{ padding: '0.35rem 0.5rem', fontFamily: 'monospace', color: '#38bdf8' }}>
+                          {item.token}
+                        </td>
+                        <td style={{ padding: '0.35rem 0.5rem', color: '#cbd5e1' }}>{item.desc}</td>
+                        <td style={{ padding: '0.35rem 0.5rem', color: '#a5b4fc', fontFamily: 'monospace' }}>
+                          {item.example}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           <div className="glass-soft" style={{ padding: '0.85rem', fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: filebotStatus?.license_present ? '#34d399' : '#fbbf24' }}>
               <ShieldCheck size={16} />
               <span>
                 {filebotStatus?.license_present
-                  ? 'Licencia de FileBot detectada en almacenamiento persistente'
-                  : 'Licencia no detectada. Coloca license.psm en /config/filebot/'}
+                  ? 'Licencia de FileBot detectada en almacenamiento persistente (/config/filebot/)'
+                  : 'Licencia no detectada. Coloca tu archivo license.psm en /config/filebot/'}
               </span>
             </div>
           </div>

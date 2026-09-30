@@ -402,7 +402,7 @@ func (a *App) SuggestFromIdea(sectionKey, idea string) (IdeaSuggestion, error) {
 						}
 					}
 				}
-				if searchMovies, err := a.tmdb.SearchMovie(term); err == nil {
+				if searchMovies, err := a.tmdb.SearchMulti(term); err == nil {
 					for _, m := range searchMovies {
 						tmdbByID[m.ID] = m
 						registerTMDbTitle(m, tmdbByTitle)

@@ -29,6 +29,8 @@ type Video struct {
 	IMDBID        string   `json:"imdbId,omitempty"`
 	Score         int      `json:"score,omitempty"`
 	MatchReason   string   `json:"matchReason,omitempty"`
+	LibraryKey    string   `json:"libraryKey,omitempty"`
+	LibraryTitle  string   `json:"libraryTitle,omitempty"`
 }
 
 type rawMediaItem struct {
@@ -57,6 +59,36 @@ type LibraryItemsResponse struct {
 func (c *Client) ListLibraryVideos(sectionKey string) ([]Video, error) {
 	if !c.Configured() {
 		return nil, fmt.Errorf("plex client not configured")
+	}
+
+	if sectionKey == "" || sectionKey == "all" {
+		if cached, ok := c.GetCachedVideos("all"); ok {
+			return cached, nil
+		}
+		libs, err := c.Libraries()
+		if err != nil {
+			return nil, err
+		}
+		var allItems []Video
+		for _, lib := range libs {
+			if lib.Type != "movie" && lib.Type != "show" {
+				continue
+			}
+			items, err := c.ListLibraryVideos(lib.Key)
+			if err != nil {
+				continue
+			}
+			for i := range items {
+				items[i].LibraryKey = lib.Key
+				items[i].LibraryTitle = lib.Title
+				if items[i].Type == "" {
+					items[i].Type = lib.Type
+				}
+			}
+			allItems = append(allItems, items...)
+		}
+		c.SetCachedVideos("all", allItems)
+		return allItems, nil
 	}
 
 	if cached, ok := c.GetCachedVideos(sectionKey); ok {
@@ -97,6 +129,7 @@ func (c *Client) ListLibraryVideos(sectionKey string) ([]Video, error) {
 			Art:           raw.Art,
 			Summary:       raw.Summary,
 			GUID:          raw.GUID,
+			LibraryKey:    sectionKey,
 		}
 		for _, g := range raw.Genres {
 			tag := strings.TrimSpace(g.Tag)
@@ -142,15 +175,44 @@ type Collection struct {
 	ChildCount int    `xml:"childCount,attr" json:"childCount"`
 	Thumb      string `xml:"thumb,attr" json:"thumb"`
 	Art        string `xml:"art,attr" json:"art"`
+	LibraryKey string `json:"libraryKey,omitempty"`
 }
 
 func (c *Client) Search(sectionKey, query string) ([]Video, error) {
 	if !c.Configured() {
 		return nil, fmt.Errorf("plex client not configured")
 	}
+
+	if sectionKey == "" || sectionKey == "all" {
+		libs, err := c.Libraries()
+		if err != nil {
+			return nil, err
+		}
+		var allItems []Video
+		for _, lib := range libs {
+			if lib.Type != "movie" && lib.Type != "show" {
+				continue
+			}
+			items, err := c.Search(lib.Key, query)
+			if err != nil {
+				continue
+			}
+			for i := range items {
+				items[i].LibraryKey = lib.Key
+				items[i].LibraryTitle = lib.Title
+				if items[i].Type == "" {
+					items[i].Type = lib.Type
+				}
+			}
+			allItems = append(allItems, items...)
+		}
+		return allItems, nil
+	}
+
 	u := fmt.Sprintf("%s/library/sections/%s/search", c.baseURL, sectionKey)
 	q := url.Values{}
 	q.Set("query", query)
+	q.Set("type", c.SectionType(sectionKey))
 	q.Set("X-Plex-Token", c.token)
 	u += "?" + q.Encode()
 	resp, err := c.http.Get(u)
@@ -167,6 +229,9 @@ func (c *Client) Search(sectionKey, query string) ([]Video, error) {
 	}
 	items := append([]Video{}, out.Videos...)
 	items = append(items, out.Dirs...)
+	for i := range items {
+		items[i].LibraryKey = sectionKey
+	}
 	return items, nil
 }
 
@@ -190,6 +255,9 @@ func (c *Client) ListCollections(sectionKey string) ([]Collection, error) {
 	if err := xml.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, err
 	}
+	for i := range out.Directories {
+		out.Directories[i].LibraryKey = sectionKey
+	}
 	return out.Directories, nil
 }
 
@@ -205,7 +273,7 @@ func (c *Client) CreateCollection(sectionKey, title string, ratingKeys []string)
 	}
 	u := fmt.Sprintf("%s/library/collections", c.baseURL)
 	q := url.Values{}
-	q.Set("type", sectionTypeFromSectionKey(sectionKey))
+	q.Set("type", c.SectionType(sectionKey))
 	q.Set("title", title)
 	q.Set("smart", "0")
 	q.Set("sectionId", sectionKey)
@@ -254,8 +322,19 @@ func (c *Client) collectionURI(sectionKey string, ratingKeys []string) string {
 	return fmt.Sprintf("server://%s/com.plexapp.plugins.library/library/metadata/%s", c.MachineIdentifier(), strings.Join(ratingKeys, ","))
 }
 
-func sectionTypeFromSectionKey(sectionKey string) string {
-	if sectionKey == "2" {
+func (c *Client) SectionType(sectionKey string) string {
+	libs, err := c.Libraries()
+	if err == nil {
+		for _, l := range libs {
+			if l.Key == sectionKey {
+				if strings.EqualFold(l.Type, "show") || strings.EqualFold(l.Type, "series") {
+					return "2"
+				}
+				return "1"
+			}
+		}
+	}
+	if sectionKey == "2" || sectionKey == "3" {
 		return "2"
 	}
 	return "1"

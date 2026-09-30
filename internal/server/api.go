@@ -46,6 +46,7 @@ type CollectionDTO struct {
 	Title      string `json:"title"`
 	Type       string `json:"type"`
 	ChildCount int    `json:"childCount"`
+	LibraryKey string `json:"libraryKey,omitempty"`
 	Temporary  bool   `json:"temporary"`
 	ExpiresAt  string `json:"expiresAt,omitempty"`
 	ThumbURL   string `json:"thumbUrl,omitempty"`
@@ -62,15 +63,22 @@ type RecipeDTO struct {
 	TemporaryByDefault bool     `json:"temporaryByDefault"`
 }
 
+type CollectionItemRef struct {
+	Title      string `json:"title"`
+	RatingKey  string `json:"ratingKey,omitempty"`
+	LibraryKey string `json:"libraryKey,omitempty"`
+}
+
 type CreateCollectionRequest struct {
-	LibraryKey   string   `json:"libraryKey"`
-	Name         string   `json:"name"`
-	Titles       []string `json:"titles"`
-	SourcePrompt string   `json:"sourcePrompt"`
-	Temporary    bool     `json:"temporary"`
-	ExpiresAt    string   `json:"expiresAt"`
-	PosterURL    string   `json:"posterUrl"`
-	PosterBase64 string   `json:"posterBase64"`
+	LibraryKey   string              `json:"libraryKey"`
+	Name         string              `json:"name"`
+	Titles       []string            `json:"titles"`
+	Items        []CollectionItemRef `json:"items,omitempty"`
+	SourcePrompt string              `json:"sourcePrompt"`
+	Temporary    bool                `json:"temporary"`
+	ExpiresAt    string              `json:"expiresAt"`
+	PosterURL    string              `json:"posterUrl"`
+	PosterBase64 string              `json:"posterBase64"`
 }
 
 type ApplyCorrectionRequest struct {
@@ -137,6 +145,7 @@ func (s *Server) Routes() http.Handler {
 	registerDual(mux, "/api/geoffrey/ideas", "/api/ideas", s.handleIdeas)
 	registerDual(mux, "/api/geoffrey/recipes", "/api/recipes", s.handleRecipes)
 	registerDual(mux, "/api/geoffrey/poster/upload", "/api/poster/upload", s.handlePosterUpload)
+	registerDual(mux, "/api/geoffrey/poster/suggestions", "/api/poster/suggestions", s.handlePosterSuggestions)
 	registerDual(mux, "/api/geoffrey/plex/image", "/api/plex/image", s.handlePlexImage)
 
 	// Delete collection prefix
@@ -533,8 +542,7 @@ func (s *Server) handleCollections(w http.ResponseWriter, r *http.Request) {
 	case http.MethodGet:
 		libraryKey := strings.TrimSpace(r.URL.Query().Get("library"))
 		if libraryKey == "" {
-			writeError(w, http.StatusBadRequest, "library query is required")
-			return
+			libraryKey = "all"
 		}
 		collections, err := s.geoffreyApp.Collections(libraryKey)
 		if err != nil {
@@ -551,15 +559,23 @@ func (s *Server) handleCollections(w http.ResponseWriter, r *http.Request) {
 				temp    bool
 				expires string
 			}{temp: item.Temporary, expires: item.ExpiresAt}
+			metaByName[strings.ToLower(item.Name)] = struct {
+				temp    bool
+				expires string
+			}{temp: item.Temporary, expires: item.ExpiresAt}
 		}
 		items := make([]CollectionDTO, 0, len(collections))
 		for _, item := range collections {
-			meta := metaByName[strings.ToLower(libraryKey+"::"+item.Title)]
+			meta, ok := metaByName[strings.ToLower(item.LibraryKey+"::"+item.Title)]
+			if !ok {
+				meta = metaByName[strings.ToLower(item.Title)]
+			}
 			items = append(items, CollectionDTO{
 				RatingKey:  item.RatingKey,
 				Title:      item.Title,
 				Type:       item.Type,
 				ChildCount: item.ChildCount,
+				LibraryKey: item.LibraryKey,
 				Temporary:  meta.temp,
 				ExpiresAt:  meta.expires,
 				ThumbURL:   proxyImageURL(item.Thumb),
@@ -577,20 +593,80 @@ func (s *Server) handleCollections(w http.ResponseWriter, r *http.Request) {
 		}
 		req.Name = strings.TrimSpace(req.Name)
 		req.LibraryKey = strings.TrimSpace(req.LibraryKey)
-		if req.Name == "" || req.LibraryKey == "" {
-			writeError(w, http.StatusBadRequest, "name and libraryKey are required")
+		if req.Name == "" {
+			writeError(w, http.StatusBadRequest, "name is required")
 			return
 		}
-		if err := s.geoffreyApp.CreateCollectionFromTitles(req.LibraryKey, req.Name, req.Titles, req.SourcePrompt, req.Temporary, req.ExpiresAt); err != nil {
-			writeError(w, http.StatusBadGateway, err.Error())
-			return
+		if req.LibraryKey == "" {
+			req.LibraryKey = "all"
 		}
-		if req.PosterURL != "" || req.PosterBase64 != "" {
-			if err := s.geoffreyApp.ApplyCollectionPoster(req.LibraryKey, req.Name, req.PosterURL, req.PosterBase64); err != nil {
-				log.Printf("alfred: poster apply warning for %s: %v", req.Name, err)
+
+		titlesByLib := make(map[string][]string)
+
+		if len(req.Items) > 0 {
+			for _, it := range req.Items {
+				t := strings.TrimSpace(it.Title)
+				if t == "" {
+					continue
+				}
+				lKey := strings.TrimSpace(it.LibraryKey)
+				if lKey == "" || lKey == "all" {
+					lKey = req.LibraryKey
+				}
+				if lKey == "" || lKey == "all" {
+					if results, err := s.geoffreyApp.Search("all", t); err == nil && len(results) > 0 {
+						lKey = results[0].LibraryKey
+					}
+				}
+				if lKey == "" || lKey == "all" {
+					lKey = "1"
+				}
+				titlesByLib[lKey] = append(titlesByLib[lKey], t)
+			}
+		} else {
+			for _, t := range req.Titles {
+				t = strings.TrimSpace(t)
+				if t == "" {
+					continue
+				}
+				lKey := req.LibraryKey
+				if lKey == "" || lKey == "all" {
+					if results, err := s.geoffreyApp.Search("all", t); err == nil && len(results) > 0 {
+						lKey = results[0].LibraryKey
+					}
+				}
+				if lKey == "" || lKey == "all" {
+					lKey = "1"
+				}
+				titlesByLib[lKey] = append(titlesByLib[lKey], t)
 			}
 		}
-		writeJSON(w, http.StatusCreated, map[string]any{"ok": true})
+
+		if len(titlesByLib) == 0 {
+			writeError(w, http.StatusBadRequest, "at least one title is required")
+			return
+		}
+
+		var createdLibs []string
+		for lKey, titles := range titlesByLib {
+			if len(titles) == 0 {
+				continue
+			}
+			if err := s.geoffreyApp.CreateCollectionFromTitles(lKey, req.Name, titles, req.SourcePrompt, req.Temporary, req.ExpiresAt); err != nil {
+				writeError(w, http.StatusBadGateway, fmt.Sprintf("library %s: %v", lKey, err))
+				return
+			}
+			createdLibs = append(createdLibs, lKey)
+		}
+
+		if req.PosterURL != "" || req.PosterBase64 != "" {
+			for _, lKey := range createdLibs {
+				if err := s.geoffreyApp.ApplyCollectionPoster(lKey, req.Name, req.PosterURL, req.PosterBase64); err != nil {
+					log.Printf("alfred: poster apply warning for %s in lib %s: %v", req.Name, lKey, err)
+				}
+			}
+		}
+		writeJSON(w, http.StatusCreated, map[string]any{"ok": true, "libraries": createdLibs})
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
 	}
@@ -726,6 +802,25 @@ func (s *Server) handlePosterUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"dataUrl": data, "filename": header.Filename})
+}
+
+func (s *Server) handlePosterSuggestions(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	title := strings.TrimSpace(r.URL.Query().Get("title"))
+	prompt := strings.TrimSpace(r.URL.Query().Get("prompt"))
+	if title == "" && prompt == "" {
+		writeError(w, http.StatusBadRequest, "title or prompt query parameter is required")
+		return
+	}
+	suggestions, err := s.geoffreyApp.SuggestPosters(title, prompt)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": suggestions})
 }
 
 // --- Helpers ---
