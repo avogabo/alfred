@@ -136,12 +136,14 @@ func (c *Client) RefreshPath(targetPath string) error {
 }
 
 func (c *Client) translatePath(in string) string {
-	if c.pathFrom == "" || c.pathTo == "" {
+	from := strings.Trim(strings.TrimSpace(c.pathFrom), "\"'")
+	to := strings.Trim(strings.TrimSpace(c.pathTo), "\"'")
+	if from == "" || to == "" {
 		return in
 	}
-	cleanIn := filepath.Clean(in)
-	cleanFrom := filepath.Clean(c.pathFrom)
-	cleanTo := filepath.Clean(c.pathTo)
+	cleanIn := filepath.Clean(strings.Trim(strings.TrimSpace(in), "\"'"))
+	cleanFrom := filepath.Clean(from)
+	cleanTo := filepath.Clean(to)
 	if cleanIn == cleanFrom {
 		return cleanTo
 	}

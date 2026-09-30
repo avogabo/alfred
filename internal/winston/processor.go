@@ -158,19 +158,19 @@ func (p *ImportProcessor) EnsurePreview(sourceNZB string) (*ItemPreview, error) 
 }
 
 func (p *ImportProcessor) altMountFilePath(sourceNZB string) string {
-	from := strings.TrimSpace(p.cfg.AltMountPathFrom)
-	to := strings.TrimSpace(p.cfg.AltMountPathTo)
+	from := strings.Trim(strings.TrimSpace(p.cfg.AltMountPathFrom), "\"'")
+	to := strings.Trim(strings.TrimSpace(p.cfg.AltMountPathTo), "\"'")
 	if to == "" {
 		to = "/config/.nzbs"
 	}
 	if from == "" {
-		from = strings.TrimSpace(p.cfg.SourceRoot)
+		from = strings.Trim(strings.TrimSpace(p.cfg.SourceRoot), "\"'")
 	}
 	if from == "" && to == "" {
 		return sourceNZB
 	}
 
-	cleanSource := filepath.Clean(sourceNZB)
+	cleanSource := filepath.Clean(strings.Trim(strings.TrimSpace(sourceNZB), "\"'"))
 	cleanFrom := filepath.Clean(from)
 	cleanTo := filepath.Clean(to)
 
