@@ -25,6 +25,7 @@ type FileBotResolveResult struct {
 	Method       string `json:"method"`
 	EpisodeTitle string `json:"episode_title,omitempty"`
 	TVDBID       int    `json:"tvdb_id,omitempty"`
+	TMDBID       int    `json:"tmdb_id,omitempty"`
 }
 
 type FileBotStatus struct {
@@ -105,18 +106,12 @@ func (f *FileBotClient) Resolve(ctx context.Context, sourceNZB string, meta Item
 	if !f.Enabled() {
 		return nil, nil
 	}
-	if strings.TrimSpace(f.cfg.FileBotBinary) == "" {
-		return nil, nil
-	}
-	if res, err := f.resolveWithFileBot(ctx, sourceNZB, meta); err == nil && res != nil && strings.TrimSpace(res.RelativePath) != "" {
-		res.RelativePath = applyDetectedMovieQuality(res.RelativePath, meta)
-		res.RelativePath = directoryOnlyRelativePath(res.RelativePath)
-		return res, nil
-	} else if err != nil {
-		fb := applyDetectedMovieQualityResult(f.resolveFallback(sourceNZB, meta), meta)
-		fb.RelativePath = directoryOnlyRelativePath(fb.RelativePath)
-		fb.RawOutput = err.Error()
-		return fb, err
+	if f.Available(ctx) {
+		if res, err := f.resolveWithFileBot(ctx, sourceNZB, meta); err == nil && res != nil && strings.TrimSpace(res.RelativePath) != "" {
+			res.RelativePath = applyDetectedMovieQuality(res.RelativePath, meta)
+			res.RelativePath = directoryOnlyRelativePath(res.RelativePath)
+			return res, nil
+		}
 	}
 	res := applyDetectedMovieQualityResult(f.resolveFallback(sourceNZB, meta), meta)
 	res.RelativePath = directoryOnlyRelativePath(res.RelativePath)
@@ -178,7 +173,14 @@ func (f *FileBotClient) resolveWithFileBot(ctx context.Context, sourceNZB string
 	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
 		if rel, ok := parseFileBotOutput(stdout.String(), tmpDir); ok && strings.TrimSpace(rel) != "" {
-			return &FileBotResolveResult{RelativePath: filepath.ToSlash(rel), RawOutput: stdout.String(), Method: "filebot", EpisodeTitle: detectEpisodeTitleFromPath(rel), TVDBID: detectTVDBIDFromPath(rel)}, nil
+			return &FileBotResolveResult{
+				RelativePath: filepath.ToSlash(rel),
+				RawOutput:    stdout.String(),
+				Method:       "filebot",
+				EpisodeTitle: detectEpisodeTitleFromPath(rel),
+				TVDBID:       detectTVDBIDFromPath(rel),
+				TMDBID:       detectTMDBIDFromPath(rel),
+			}, nil
 		}
 		return nil, fmt.Errorf("filebot failed: %w stderr=%s stdout=%s", err, strings.TrimSpace(stderr.String()), strings.TrimSpace(stdout.String()))
 	}
@@ -187,7 +189,14 @@ func (f *FileBotClient) resolveWithFileBot(ctx context.Context, sourceNZB string
 	if !ok || strings.TrimSpace(rel) == "" {
 		return nil, fmt.Errorf("filebot output did not contain target path")
 	}
-	return &FileBotResolveResult{RelativePath: filepath.ToSlash(rel), RawOutput: stdout.String(), Method: "filebot", EpisodeTitle: detectEpisodeTitleFromPath(rel), TVDBID: detectTVDBIDFromPath(rel)}, nil
+	return &FileBotResolveResult{
+		RelativePath: filepath.ToSlash(rel),
+		RawOutput:    stdout.String(),
+		Method:       "filebot",
+		EpisodeTitle: detectEpisodeTitleFromPath(rel),
+		TVDBID:       detectTVDBIDFromPath(rel),
+		TMDBID:       detectTMDBIDFromPath(rel),
+	}, nil
 }
 
 func parseFileBotOutput(out, root string) (string, bool) {
@@ -298,37 +307,91 @@ func (f *FileBotClient) resolveFallback(sourceNZB string, meta ItemMetadata) *Fi
 	movieFmt := f.cfg.FileBotMovieFormat
 	seriesFmt := f.cfg.FileBotSeriesFormat
 	if strings.TrimSpace(movieFmt) == "" {
-		movieFmt = "Peliculas/{quality}/{alpha}/{title} ({year})"
+		movieFmt = `Peliculas/{vf}/{az}/{n} ({y}) {"{tmdb-"+id+"}"}/{n} ({y}) {"{tmdb-"+id+"}"}`
 	}
 	if strings.TrimSpace(seriesFmt) == "" {
-		seriesFmt = "Series/{alpha}/{series}/Temporada {season}/{series} - {episode}"
+		seriesFmt = `Series/{az}/{n} ({y}) {"{tvdb-"+id+"}"}/{episode.special ? "Especiales" : "Temporada "+s00}/{n} ({y}) - {s00e00} - {t}`
 	}
-	if strings.Contains(seriesFmt, "id+") || strings.Contains(seriesFmt, "episode.special") || strings.Contains(seriesFmt, "{\"") {
-		seriesFmt = "Series/{alpha}/{series} ({year}) {tvdb}/Temporada {season}/{series} ({year}) - {episode}{episode_title_suffix}"
+
+	tmdb := tmdbToken(meta)
+	tvdb := tvdbToken(meta)
+	yearStr := maybeInt(meta.Year)
+	nyStr := title
+	if yearStr != "" {
+		nyStr = fmt.Sprintf("%s (%s)", title, yearStr)
 	}
-	if strings.Contains(movieFmt, "id+") || strings.Contains(movieFmt, "{\"") {
-		movieFmt = "Peliculas/{quality}/{alpha}/{title} ({year})/{title} ({year})"
+
+	seasonNum := defaultInt(meta.Season, 1)
+	episodeNum := defaultInt(meta.Episode, 1)
+	seasonStr := fmt.Sprintf("%02d", seasonNum)
+	s00e00 := fmt.Sprintf("S%02dE%02d", seasonNum, episodeNum)
+
+	normalizeFmt := func(raw string, isSeries bool) string {
+		out := raw
+		out = strings.ReplaceAll(out, `{"{tmdb-"+id+"}"}`, "{tmdb}")
+		out = strings.ReplaceAll(out, `{"{tmdb-" + id + "}"}`, "{tmdb}")
+		out = strings.ReplaceAll(out, `{"{tvdb-"+id+"}"}`, "{tvdb}")
+		out = strings.ReplaceAll(out, `{"{tvdb-" + id + "}"}`, "{tvdb}")
+		out = strings.ReplaceAll(out, `{"{"+"tmdb-"+id+"}"}`, "{tmdb}")
+		out = strings.ReplaceAll(out, `{"{"+"tvdb-"+id+"}"}`, "{tvdb}")
+		out = strings.ReplaceAll(out, `{episode.special ? "Especiales" : "Temporada "+s00}`, "Temporada {season}")
+		out = strings.ReplaceAll(out, `{episode.special ? "Especiales" : "Temporada " + s00}`, "Temporada {season}")
+		out = strings.ReplaceAll(out, `{episode.special ? 'Especiales' : 'Temporada '+s00}`, "Temporada {season}")
+		out = strings.ReplaceAll(out, `{s.pad(2)}`, "{season}")
+
+		if isSeries {
+			if strings.Contains(out, "id+") || strings.Contains(out, "episode.special") || strings.Contains(out, "{\"") {
+				out = "Series/{alpha}/{series} ({year}) {tvdb}/Temporada {season}/{series} ({year}) - {episode}{episode_title_suffix}"
+			}
+		} else {
+			if strings.Contains(out, "id+") || strings.Contains(out, "{\"") {
+				out = "Peliculas/{vf}/{alpha}/{title} ({year}) {tmdb}/{title} ({year}) {tmdb}"
+			}
+		}
+		return out
 	}
+
 	mapping := map[string]string{
-		"title":   title,
-		"series":  title,
-		"year":    maybeInt(meta.Year),
-		"season":  twoDigits(defaultInt(meta.Season, 1)),
-		"episode": episodeToken(meta.Season, meta.Episode),
-		"episode_title": strings.TrimSpace(meta.ResolvedEpisodeTitle),
+		"title":                title,
+		"series":               title,
+		"n":                    title,
+		"year":                 yearStr,
+		"y":                    yearStr,
+		"ny":                   nyStr,
+		"season":               seasonStr,
+		"s":                    strconv.Itoa(seasonNum),
+		"s00":                  seasonStr,
+		"s.pad(2)":             seasonStr,
+		"episode":              episodeToken(meta.Season, meta.Episode),
+		"s00e00":               s00e00,
+		"episode_title":        strings.TrimSpace(meta.ResolvedEpisodeTitle),
 		"episode_title_suffix": episodeTitleSuffix(meta.ResolvedEpisodeTitle),
-		"quality": quality,
-		"vf":      quality,
-		"alpha":   alpha,
-		"plex":    title,
-		"tvdb":    tvdbToken(meta),
+		"t":                    strings.TrimSpace(meta.ResolvedEpisodeTitle),
+		"quality":              quality,
+		"vf":                   quality,
+		"alpha":                alpha,
+		"az":                   alpha,
+		"n[0]":                 alpha,
+		"plex":                 title,
+		"tvdb":                 tvdb,
+		"tmdb":                 tmdb,
+		"id":                   idToken(meta),
+		"tmdbid":               tmdb,
+		"tvdbid":               tvdb,
 	}
-	format := movieFmt
+
+	format := normalizeFmt(movieFmt, false)
 	if kind == "series" {
-		format = seriesFmt
+		format = normalizeFmt(seriesFmt, true)
 	}
 	resolved := applyTokenFormat(format, mapping)
-	return &FileBotResolveResult{RelativePath: filepath.ToSlash(strings.Trim(resolved, "/ ")), Method: "fallback"}
+	return &FileBotResolveResult{
+		RelativePath: filepath.ToSlash(strings.Trim(resolved, "/ ")),
+		Method:       "fallback",
+		EpisodeTitle: strings.TrimSpace(meta.ResolvedEpisodeTitle),
+		TVDBID:       meta.TVDBID,
+		TMDBID:       meta.TMDBID,
+	}
 }
 
 func applyTokenFormat(format string, mapping map[string]string) string {
@@ -336,8 +399,18 @@ func applyTokenFormat(format string, mapping map[string]string) string {
 	for k, v := range mapping {
 		out = strings.ReplaceAll(out, "{"+k+"}", v)
 	}
-	out = regexp.MustCompile(`/+`).ReplaceAllString(out, "/")
-	return out
+	out = strings.ReplaceAll(out, "()", "")
+	out = strings.ReplaceAll(out, "[]", "")
+	out = strings.ReplaceAll(out, "{}", "")
+	parts := strings.Split(out, "/")
+	cleanParts := make([]string, 0, len(parts))
+	for _, p := range parts {
+		cleaned := strings.Join(strings.Fields(p), " ")
+		if cleaned != "" {
+			cleanParts = append(cleanParts, cleaned)
+		}
+	}
+	return strings.Join(cleanParts, "/")
 }
 
 func applyDetectedMovieQualityResult(res *FileBotResolveResult, meta ItemMetadata) *FileBotResolveResult {
@@ -365,8 +438,16 @@ func applyDetectedMovieQuality(rel string, meta ItemMetadata) string {
 		return rel
 	}
 	if parts[0] == "Peliculas" {
-		if len(parts) > 1 && parts[1] == q {
-			return rel
+		if len(parts) > 1 {
+			p1 := strings.ToLower(parts[1])
+			qLow := strings.ToLower(q)
+			if p1 == qLow || strings.TrimSuffix(p1, "p") == strings.TrimSuffix(qLow, "p") {
+				return rel
+			}
+			if p1 == "unknown" || p1 == "{vf}" || p1 == "c" {
+				parts[1] = q
+				return filepath.ToSlash(strings.Join(parts, "/"))
+			}
 		}
 		return filepath.ToSlash(filepath.Join("Peliculas", q, strings.Join(parts[1:], "/")))
 	}
@@ -392,6 +473,16 @@ func detectTVDBIDFromPath(rel string) int {
 	return v
 }
 
+func detectTMDBIDFromPath(rel string) int {
+	re := regexp.MustCompile(`\{tmdb-(\d+)\}`)
+	m := re.FindStringSubmatch(rel)
+	if len(m) != 2 {
+		return 0
+	}
+	v, _ := strconv.Atoi(m[1])
+	return v
+}
+
 func directoryOnlyRelativePath(rel string) string {
 	rel = filepath.ToSlash(strings.TrimSpace(rel))
 	if rel == "" {
@@ -402,7 +493,13 @@ func directoryOnlyRelativePath(rel string) string {
 		return rel
 	}
 	last := parts[len(parts)-1]
-	if strings.Contains(last, ".") {
+	if strings.Contains(last, ".") && len(filepath.Ext(last)) >= 2 && len(filepath.Ext(last)) <= 5 {
+		return strings.Join(parts[:len(parts)-1], "/")
+	}
+	if len(parts) >= 2 && parts[len(parts)-1] == parts[len(parts)-2] {
+		return strings.Join(parts[:len(parts)-1], "/")
+	}
+	if len(parts) >= 3 && (regexp.MustCompile(`(?i)(?:^|[\s\.\-_])S\d+E\d+(?:[\s\.\-_]|$)`).MatchString(last) || regexp.MustCompile(`(?i)(?:^|[\s\.\-_])\d+x\d+(?:[\s\.\-_]|$)`).MatchString(last)) {
 		return strings.Join(parts[:len(parts)-1], "/")
 	}
 	return rel
@@ -448,7 +545,24 @@ func tvdbToken(meta ItemMetadata) string {
 	if meta.TVDBID > 0 {
 		return fmt.Sprintf("{tvdb-%d}", meta.TVDBID)
 	}
-	return "{tvdb}"
+	return ""
+}
+
+func tmdbToken(meta ItemMetadata) string {
+	if meta.TMDBID > 0 {
+		return fmt.Sprintf("{tmdb-%d}", meta.TMDBID)
+	}
+	return ""
+}
+
+func idToken(meta ItemMetadata) string {
+	if meta.TMDBID > 0 {
+		return strconv.Itoa(meta.TMDBID)
+	}
+	if meta.TVDBID > 0 {
+		return strconv.Itoa(meta.TVDBID)
+	}
+	return ""
 }
 
 func episodeTitleSuffix(title string) string {

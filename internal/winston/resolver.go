@@ -67,6 +67,9 @@ func (p *ImportProcessor) buildPathForPreview(sourceNZB string, preview *ItemPre
 			if preview.Metadata.TVDBID == 0 && resolved.TVDBID > 0 {
 				preview.Metadata.TVDBID = resolved.TVDBID
 			}
+			if preview.Metadata.TMDBID == 0 && resolved.TMDBID > 0 {
+				preview.Metadata.TMDBID = resolved.TMDBID
+			}
 			return resolved.RelativePath
 		} else if err != nil {
 			preview.ResolverMethod = "fallback"

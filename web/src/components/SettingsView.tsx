@@ -77,8 +77,8 @@ const defaultSettings: SettingsDTO = {
   auto_import_medium: true,
   movies_template: 'Peliculas/{quality}/{alpha}/{title} ({year})',
   series_template: 'Series/{alpha}/{series}/Temporada {season}/{series} - {episode}',
-  filebot_movie_format: 'Peliculas/{plex}',
-  filebot_series_format: 'Series/{plex}',
+  filebot_movie_format: 'Peliculas/{vf}/{az}/{n} ({y}) {"{tmdb-"+id+"}"}/{n} ({y}) {"{tmdb-"+id+"}"}',
+  filebot_series_format: 'Series/{az}/{n} ({y}) {"{tvdb-"+id+"}"}/{episode.special ? "Especiales" : "Temporada "+s00}/{n} ({y}) - {s00e00} - {t}',
   filebot_db: 'TheMovieDB',
   filebot_binary: '/usr/local/bin/filebot',
   filebot_home: '/config/filebot',
@@ -90,7 +90,13 @@ const defaultSettings: SettingsDTO = {
 
 const filebotPresets = [
   {
-    name: 'Plex Estándar (Recomendado)',
+    name: 'Receta Base Original (Ruta + Calidad + Inicial + ID) ★ Por defecto',
+    desc: 'Tu receta: Peliculas/{vf}/{az}/... y Series/{az}/... con ID (TMDb / TheTVDB) en carpeta y archivo',
+    movie: 'Peliculas/{vf}/{az}/{n} ({y}) {"{tmdb-"+id+"}"}/{n} ({y}) {"{tmdb-"+id+"}"}',
+    series: 'Series/{az}/{n} ({y}) {"{tvdb-"+id+"}"}/{episode.special ? "Especiales" : "Temporada "+s00}/{n} ({y}) - {s00e00} - {t}',
+  },
+  {
+    name: 'Plex Estándar',
     desc: 'Estructura oficial de Plex: Peliculas/{plex} y Series/{plex}',
     movie: 'Peliculas/{plex}',
     series: 'Series/{plex}',
@@ -108,7 +114,7 @@ const filebotPresets = [
     series: "Series/{n}/Temporada {s.pad(2)}/{n} - {s00e00} - {t} [{vf} {hdr}]",
   },
   {
-    name: 'Carpetas por Inicial (A-Z)',
+    name: 'Carpetas por Inicial (A-Z Simple)',
     desc: 'Organiza por letra inicial para bibliotecas muy grandes',
     movie: 'Peliculas/{n[0]}/{ny}/{ny}',
     series: "Series/{n[0]}/{n}/Temporada {s.pad(2)}/{n} - {s00e00}",
@@ -116,6 +122,10 @@ const filebotPresets = [
 ]
 
 const filebotTokens = [
+  { token: '{az}', desc: 'Inicial alfabética del título (A-Z o #)', example: 'O, B, T' },
+  { token: '{vf}', desc: 'Resolución o formato de vídeo (2160, 1080, etc.)', example: '2160p, 1080p, 720p' },
+  { token: '{"{tmdb-"+id+"}"}', desc: 'Inserta el ID de TMDb entre llaves para Plex', example: '{tmdb-872585}' },
+  { token: '{"{tvdb-"+id+"}"}', desc: 'Inserta el ID de TheTVDB entre llaves para Plex', example: '{tvdb-100088}' },
   { token: '{plex}', desc: 'Estructura recomendada estándar de Plex', example: 'Peliculas/Avatar (2009)/Avatar (2009)' },
   { token: '{ny}', desc: 'Nombre y año del título', example: 'Inception (2010)' },
   { token: '{n}', desc: 'Nombre del título o serie sin año', example: 'Breaking Bad' },
@@ -123,7 +133,6 @@ const filebotTokens = [
   { token: '{s00e00}', desc: 'Temporada y episodio con 2 dígitos', example: 'S01E05' },
   { token: '{s.pad(2)}', desc: 'Número de temporada con 2 dígitos', example: '01' },
   { token: '{t}', desc: 'Título del episodio', example: 'Ozymandias' },
-  { token: '{vf}', desc: 'Resolución o formato de vídeo', example: '2160p, 1080p, 720p' },
   { token: '{vc}', desc: 'Códec de vídeo', example: 'HEVC, x265, x264' },
   { token: '{ac}', desc: 'Códec de audio', example: 'TrueHD, DTS-HD MA, EAC3' },
   { token: '{channels}', desc: 'Canales de audio', example: '7.1, 5.1, 2.0' },
