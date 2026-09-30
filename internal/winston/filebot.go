@@ -36,6 +36,9 @@ type FileBotStatus struct {
 	Home           string `json:"home"`
 	DB             string `json:"db"`
 	LicensePresent bool   `json:"license_present"`
+	FallbackActive bool   `json:"fallback_active"`
+	DockerEmbedded bool   `json:"docker_embedded"`
+	StatusText     string `json:"status_text"`
 }
 
 func NewFileBotClient(cfg config.Config) *FileBotClient {
@@ -91,14 +94,23 @@ func (f *FileBotClient) Status(ctx context.Context) FileBotStatus {
 		}
 	}
 
+	available := f.Available(ctx)
+	statusText := "Binario listo (Nativo)"
+	if !available {
+		statusText = "Fallback activo (Preinstalado en Docker)"
+	}
+
 	return FileBotStatus{
 		Enabled:        f.Enabled(),
-		Available:      f.Available(ctx),
+		Available:      available,
 		Mode:           strings.TrimSpace(f.cfg.DefaultMode),
 		Binary:         strings.TrimSpace(f.cfg.FileBotBinary),
 		Home:           home,
 		DB:             strings.TrimSpace(f.cfg.FileBotDB),
 		LicensePresent: licensePresent,
+		FallbackActive: !available,
+		DockerEmbedded: true,
+		StatusText:     statusText,
 	}
 }
 

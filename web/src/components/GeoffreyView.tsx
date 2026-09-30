@@ -8,6 +8,7 @@ import {
   Library,
   LoaderCircle,
   Plus,
+  RefreshCw,
   Search,
   Sparkles,
   Trash2,
@@ -77,6 +78,133 @@ const emptyForm: FormState = {
   temporary: false,
   posterUrl: '',
   posterBase64: '',
+}
+
+function PosterSuggestionCard({
+  sug,
+  isSelected,
+  onSelect,
+}: {
+  sug: PosterSuggestion
+  isSelected: boolean
+  onSelect: () => void
+}) {
+  const [loadError, setLoadError] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [retryKey, setRetryKey] = useState(0)
+
+  return (
+    <div
+      onClick={onSelect}
+      style={{
+        cursor: 'pointer',
+        borderRadius: '8px',
+        overflow: 'hidden',
+        border: isSelected ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
+        background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 0, 0, 0.5)',
+        display: 'flex',
+        flexDirection: 'column',
+        boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.4)' : undefined,
+        transition: 'all 0.15s ease',
+      }}
+    >
+      <div
+        style={{
+          height: '190px',
+          width: '100%',
+          overflow: 'hidden',
+          background: '#090d16',
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        {loading && !loadError && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+              background: 'rgba(15, 23, 42, 0.85)',
+              zIndex: 2,
+            }}
+          >
+            <LoaderCircle size={20} className="spin" color="#38bdf8" />
+            <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>Cargando...</span>
+          </div>
+        )}
+        {loadError ? (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              padding: '0.75rem',
+              textAlign: 'center',
+              color: '#94a3b8',
+              height: '100%',
+            }}
+          >
+            <Sparkles size={22} color="#a855f7" />
+            <span style={{ fontSize: '0.7rem', color: '#cbd5e1', lineHeight: '1.2' }}>
+              Generando póster IA...
+            </span>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              style={{ fontSize: '0.65rem', padding: '0.2rem 0.5rem', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
+              onClick={(e) => {
+                e.stopPropagation()
+                setLoadError(false)
+                setLoading(true)
+                setRetryKey((k) => k + 1)
+              }}
+            >
+              <RefreshCw size={10} /> Reintentar
+            </button>
+          </div>
+        ) : (
+          <img
+            key={retryKey}
+            src={retryKey ? `${sug.url}${sug.url.includes('?') ? '&' : '?'}retry=${retryKey}` : sug.url}
+            alt={sug.label}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+            loading="lazy"
+            onLoad={() => setLoading(false)}
+            onError={() => {
+              setLoading(false)
+              setLoadError(true)
+            }}
+          />
+        )}
+      </div>
+      <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+        <span
+          style={{
+            fontSize: '0.65rem',
+            padding: '0.1rem 0.35rem',
+            borderRadius: '4px',
+            background: sug.source.startsWith('tmdb') ? 'rgba(16, 185, 129, 0.25)' : 'rgba(168, 85, 247, 0.25)',
+            color: sug.source.startsWith('tmdb') ? '#34d399' : '#d8b4fe',
+            width: 'fit-content',
+            fontWeight: 600,
+          }}
+        >
+          {sug.source.startsWith('tmdb') ? 'TMDb Oficial' : 'IA Pollinations'}
+        </span>
+        <span style={{ fontSize: '0.72rem', color: '#cbd5e1', lineHeight: '1.2' }}>
+          {sug.label}
+        </span>
+      </div>
+    </div>
+  )
 }
 
 type GeoffreyViewProps = {
@@ -505,14 +633,42 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
               {/* Poster Preview and Quick Upload */}
               <div className="glass-soft" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', alignItems: 'center' }}>
                 <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Póster de la colección</span>
-                <div className="poster-box">
+                <div className="poster-box" style={{ position: 'relative' }}>
                   {posterPreview ? (
-                    <img src={posterPreview} alt="Poster" />
-                  ) : (
-                    <div className="poster-box empty">
-                      <Clapperboard size={32} />
-                    </div>
-                  )}
+                    <img
+                      src={posterPreview}
+                      alt="Poster"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        const fallback = e.currentTarget.parentElement?.querySelector('.poster-box-fallback') as HTMLElement
+                        if (fallback) fallback.style.display = 'flex'
+                      }}
+                      onLoad={(e) => {
+                        e.currentTarget.style.display = 'block'
+                        const fallback = e.currentTarget.parentElement?.querySelector('.poster-box-fallback') as HTMLElement
+                        if (fallback) fallback.style.display = 'none'
+                      }}
+                    />
+                  ) : null}
+                  <div
+                    className="poster-box empty poster-box-fallback"
+                    style={{
+                      display: posterPreview ? 'none' : 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.4rem',
+                      width: '100%',
+                      height: '100%',
+                    }}
+                  >
+                    <Clapperboard size={32} />
+                    {posterPreview && (
+                      <span style={{ fontSize: '0.7rem', color: '#f87171' }}>
+                        Error al cargar imagen
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   <input
@@ -591,51 +747,15 @@ export function GeoffreyView({ onNotify, onRefreshGlobalStatus }: GeoffreyViewPr
                     {posterSuggestions.map((sug, idx) => {
                       const isSelected = form.posterUrl === sug.url
                       return (
-                        <div
-                          key={idx}
-                          onClick={() => {
+                        <PosterSuggestionCard
+                          key={`${idx}-${sug.url}`}
+                          sug={sug}
+                          isSelected={isSelected}
+                          onSelect={() => {
                             setForm((prev) => ({ ...prev, posterUrl: sug.url, posterBase64: '' }))
                             onNotify?.(`Póster seleccionado: ${sug.label}`, 'success')
                           }}
-                          style={{
-                            cursor: 'pointer',
-                            borderRadius: '8px',
-                            overflow: 'hidden',
-                            border: isSelected ? '2px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.12)',
-                            background: isSelected ? 'rgba(56, 189, 248, 0.15)' : 'rgba(0, 0, 0, 0.5)',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.4)' : undefined,
-                            transition: 'all 0.15s ease',
-                          }}
-                        >
-                          <div style={{ height: '190px', width: '100%', overflow: 'hidden', background: '#090d16' }}>
-                            <img
-                              src={sug.url}
-                              alt={sug.label}
-                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              loading="lazy"
-                            />
-                          </div>
-                          <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                            <span
-                              style={{
-                                fontSize: '0.65rem',
-                                padding: '0.1rem 0.35rem',
-                                borderRadius: '4px',
-                                background: sug.source.startsWith('tmdb') ? 'rgba(16, 185, 129, 0.25)' : 'rgba(168, 85, 247, 0.25)',
-                                color: sug.source.startsWith('tmdb') ? '#34d399' : '#d8b4fe',
-                                width: 'fit-content',
-                                fontWeight: 600,
-                              }}
-                            >
-                              {sug.source.startsWith('tmdb') ? 'TMDb Oficial' : 'IA Pollinations'}
-                            </span>
-                            <span style={{ fontSize: '0.72rem', color: '#cbd5e1', lineHeight: '1.2' }}>
-                              {sug.label}
-                            </span>
-                          </div>
-                        </div>
+                        />
                       )
                     })}
                   </div>

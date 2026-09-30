@@ -445,7 +445,7 @@ func (s *Server) handleReviewImport(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "processor unavailable")
 		return
 	}
-	if err := proc.ImportOne(r.Context(), source); err != nil {
+	if err := proc.RetryImport(r.Context(), source); err != nil {
 		writeError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

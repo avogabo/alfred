@@ -52,6 +52,9 @@ type FileBotStatus = {
   home: string
   db: string
   license_present: boolean
+  fallback_active?: boolean
+  docker_embedded?: boolean
+  status_text?: string
 }
 
 type SettingsViewProps = {
@@ -381,8 +384,11 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
               <FileCode size={18} color="#6366f1" /> FileBot (Renombrado)
             </h3>
             {filebotStatus ? (
-              <span className={`pill ${filebotStatus.available ? 'approved' : 'failed'}`}>
-                {filebotStatus.available ? 'Binario listo' : 'No disponible'}
+              <span
+                className={`pill ${filebotStatus.available ? 'approved' : 'review'}`}
+                title={filebotStatus.available ? 'Binario nativo detectado' : 'Motor integrado de Alfred activo (ejecuta tu receta). Preinstalado en imagen oficial Docker.'}
+              >
+                {filebotStatus.status_text || (filebotStatus.available ? 'Binario listo' : 'Fallback Activo (Docker listo)')}
               </span>
             ) : null}
           </div>
@@ -391,7 +397,12 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
           <div className="glass-soft" style={{ padding: '0.75rem 0.9rem', borderLeft: '3px solid #6366f1', display: 'flex', gap: '0.6rem', alignItems: 'flex-start' }}>
             <Info size={16} color="#818cf8" style={{ marginTop: '2px', flexShrink: 0 }} />
             <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.4' }}>
-              <strong style={{ color: '#fff' }}>FileBot 5.1.6 ya está integrado dentro del contenedor Docker oficial de Alfred.</strong> No necesitas instalar Java ni enlazar binarios externos en tu host. Simplemente coloca tu archivo de licencia <code>license.psm</code> dentro de tu carpeta o volumen <code>/config/filebot/</code>.
+              <strong style={{ color: '#fff' }}>FileBot 5.1.6 está integrado dentro del contenedor oficial Docker de Alfred.</strong>
+              <div style={{ marginTop: '0.25rem' }}>
+                {filebotStatus?.available
+                  ? 'Binario local detectado y listo para ejecución CLI nativa.'
+                  : 'Alfred utiliza su motor de reemplazo integrado aplicando fielmente tu receta de renombrado personalizada. En Docker oficial se ejecuta con el binario v5.1.6 completo. Para activarlo con licencia comercial, monta tu archivo license.psm en /config/filebot/.'}
+              </div>
             </div>
           </div>
 

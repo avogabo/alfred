@@ -25,6 +25,7 @@ type ImportedRecord struct {
 	Confidence   MatchConfidence `json:"confidence"`
 	Metadata     ItemMetadata    `json:"metadata"`
 	Preview      *ItemPreview    `json:"preview,omitempty"`
+	Reason       string          `json:"reason,omitempty"`
 }
 
 func NewStateStore(root string) (*StateStore, error) {

@@ -33,7 +33,15 @@ func (p *ImportProcessor) Run(ctx context.Context) error {
 }
 
 func (p *ImportProcessor) ImportOne(ctx context.Context, sourceNZB string) error {
-	if p.state != nil {
+	return p.importOneInternal(ctx, sourceNZB, false)
+}
+
+func (p *ImportProcessor) RetryImport(ctx context.Context, sourceNZB string) error {
+	return p.importOneInternal(ctx, sourceNZB, true)
+}
+
+func (p *ImportProcessor) importOneInternal(ctx context.Context, sourceNZB string, force bool) error {
+	if p.state != nil && !force {
 		if rec, ok := p.state.Data.Imported[sourceNZB]; ok {
 			if rec.Status == "submitted" || rec.Status == "completed" || rec.Status == "error" || rec.State == StateImported || rec.State == StateImporting || rec.State == StateFailed {
 				log.Printf("winston: skipping already seen nzb: %s status=%s state=%s", sourceNZB, rec.Status, rec.State)
@@ -53,7 +61,7 @@ func (p *ImportProcessor) ImportOne(ctx context.Context, sourceNZB string) error
 		relativePath = filepath.ToSlash(filepath.Dir(relativePath))
 	}
 
-	if preview.State == StateNeedsReview && !(preview.Confidence == ConfidenceMedium && p.cfg.AutoImportMedium) {
+	if !force && preview.State == StateNeedsReview && !(preview.Confidence == ConfidenceMedium && p.cfg.AutoImportMedium) {
 		log.Printf("winston: review required for %s proposed=%s reason=%s", sourceNZB, preview.ProposedPath, preview.Reason)
 		if p.state != nil {
 			_ = p.state.Put(sourceNZB, ImportedRecord{RelativePath: preview.ProposedPath, Status: "review", State: preview.State, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
@@ -69,6 +77,20 @@ func (p *ImportProcessor) ImportOne(ctx context.Context, sourceNZB string) error
 		RelativePath: func() *string { if strings.TrimSpace(relativePath) == "" { return nil }; v := strings.TrimSpace(relativePath); return &v }(),
 	})
 	if err != nil {
+		if p.state != nil {
+			preview.State = StateFailed
+			preview.Reason = err.Error()
+			preview.ResolverError = err.Error()
+			_ = p.state.Put(sourceNZB, ImportedRecord{
+				RelativePath: relativePath,
+				Status:       "error",
+				State:        StateFailed,
+				Confidence:   preview.Confidence,
+				Metadata:     preview.Metadata,
+				Preview:      preview,
+				Reason:       err.Error(),
+			})
+		}
 		return err
 	}
 	if resp.QueueID <= 0 {
@@ -91,7 +113,7 @@ func (p *ImportProcessor) ImportOne(ctx context.Context, sourceNZB string) error
 	item, err := p.waitForQueueReady(ctx, resp.QueueID)
 	if err != nil {
 		if p.state != nil {
-			_ = p.state.Put(sourceNZB, ImportedRecord{QueueID: resp.QueueID, RelativePath: relativePath, Status: "error", State: StateFailed, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
+			_ = p.state.Put(sourceNZB, ImportedRecord{QueueID: resp.QueueID, RelativePath: relativePath, Status: "error", State: StateFailed, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview, Reason: err.Error()})
 		}
 		return err
 	}
@@ -128,17 +150,23 @@ func (p *ImportProcessor) EnsurePreview(sourceNZB string) (*ItemPreview, error) 
 		if rec.Status == "" {
 			rec.Status = "review"
 		}
-			if err := p.state.Put(sourceNZB, rec); err != nil {
-				return nil, err
-			}
+		if err := p.state.Put(sourceNZB, rec); err != nil {
+			return nil, err
 		}
+	}
 	return preview, nil
 }
 
 func (p *ImportProcessor) altMountFilePath(sourceNZB string) string {
 	from := strings.TrimSpace(p.cfg.AltMountPathFrom)
 	to := strings.TrimSpace(p.cfg.AltMountPathTo)
-	if from == "" || to == "" {
+	if to == "" {
+		to = "/config/.nzbs"
+	}
+	if from == "" {
+		from = strings.TrimSpace(p.cfg.SourceRoot)
+	}
+	if from == "" && to == "" {
 		return sourceNZB
 	}
 
@@ -149,10 +177,12 @@ func (p *ImportProcessor) altMountFilePath(sourceNZB string) string {
 	if cleanSource == cleanFrom {
 		return cleanTo
 	}
-	if rel, err := filepath.Rel(cleanFrom, cleanSource); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
-		return filepath.ToSlash(filepath.Join(cleanTo, rel))
+	if from != "" {
+		if rel, err := filepath.Rel(cleanFrom, cleanSource); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+			return filepath.ToSlash(filepath.Join(cleanTo, rel))
+		}
 	}
-	return sourceNZB
+	return filepath.ToSlash(filepath.Join(cleanTo, filepath.Base(cleanSource)))
 }
 
 func (p *ImportProcessor) stageAltMountNZB(sourceNZB string) string {

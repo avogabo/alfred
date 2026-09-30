@@ -2,6 +2,7 @@ package geoffrey
 
 import (
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -72,24 +73,26 @@ func (a *App) SuggestPosters(title, prompt string) ([]PosterSuggestion, error) {
 			}
 		}
 
-		// TMDb Movie Poster fallback if few collection posters
-		if len(suggestions) < 3 {
-			if movies, err := a.tmdb.SearchMovie(searchQuery); err == nil {
-				for _, m := range movies {
-					if m.PosterPath != "" {
-						fullURL := "https://image.tmdb.org/t/p/w500" + m.PosterPath
-						if !seen[fullURL] {
-							seen[fullURL] = true
-							suggestions = append(suggestions, PosterSuggestion{
-								URL:    fullURL,
-								Source: "tmdb_movie",
-								Label:  fmt.Sprintf("Película TMDb: %s", m.Title),
-							})
+		// TMDb Multi search (movies & series in Spanish)
+		if multi, err := a.tmdb.SearchMulti(searchQuery); err == nil {
+			for _, item := range multi {
+				if item.PosterPath != "" {
+					fullURL := "https://image.tmdb.org/t/p/w500" + item.PosterPath
+					if !seen[fullURL] {
+						seen[fullURL] = true
+						nameText := item.Title
+						if nameText == "" {
+							nameText = item.Name
 						}
+						suggestions = append(suggestions, PosterSuggestion{
+							URL:    fullURL,
+							Source: "tmdb_title",
+							Label:  fmt.Sprintf("Póster oficial TMDb: %s", nameText),
+						})
 					}
-					if len(suggestions) >= 4 {
-						break
-					}
+				}
+				if len(suggestions) >= 6 {
+					break
 				}
 			}
 		}
@@ -98,23 +101,26 @@ func (a *App) SuggestPosters(title, prompt string) ([]PosterSuggestion, error) {
 	// 2. Pollinations.ai (Free automatic AI-generated poster based on title & keywords)
 	aiSubject := searchQuery
 	if cleanTitle != "" && cleanPrompt != "" && !strings.EqualFold(cleanTitle, cleanPrompt) {
-		aiSubject = cleanTitle + " (" + cleanPrompt + ")"
+		aiSubject = cleanTitle + " " + cleanPrompt
 	}
 	if aiSubject != "" {
-		promptCinematic := fmt.Sprintf("cinematic movie collection poster, %s, movie title typography, dramatic film lighting, official studio theatrical poster, 8k", aiSubject)
-		urlCinematic := fmt.Sprintf("https://image.pollinations.ai/prompt/%s?width=600&height=900&nologo=true", strings.ReplaceAll(promptCinematic, " ", "%20"))
+		cleanAI := strings.NewReplacer(",", " ", "(", " ", ")", " ", "\"", " ", "/", " ").Replace(aiSubject)
+		cleanAI = strings.Join(strings.Fields(cleanAI), " ")
+
+		promptCinematic := fmt.Sprintf("cinematic movie poster %s masterpiece", cleanAI)
+		urlCinematic := fmt.Sprintf("https://image.pollinations.ai/prompt/%s?model=flux&width=600&height=900&nologo=true", url.PathEscape(promptCinematic))
 		suggestions = append(suggestions, PosterSuggestion{
 			URL:    urlCinematic,
 			Source: "ai_pollinations_cinematic",
-			Label:  "Póster cinematográfico IA (Pollinations)",
+			Label:  "Póster cinematográfico IA (Pollinations Flux)",
 		})
 
-		promptArt := fmt.Sprintf("minimalist vintage movie poster art for %s, retro graphic screenprint, vibrant cinema illustration, clean design", aiSubject)
-		urlArt := fmt.Sprintf("https://image.pollinations.ai/prompt/%s?width=600&height=900&nologo=true", strings.ReplaceAll(promptArt, " ", "%20"))
+		promptArt := fmt.Sprintf("artistic minimalist movie poster %s illustration", cleanAI)
+		urlArt := fmt.Sprintf("https://image.pollinations.ai/prompt/%s?model=flux&width=600&height=900&nologo=true", url.PathEscape(promptArt))
 		suggestions = append(suggestions, PosterSuggestion{
 			URL:    urlArt,
 			Source: "ai_pollinations_artistic",
-			Label:  "Póster artístico minimalista IA (Pollinations)",
+			Label:  "Póster artístico minimalista IA (Pollinations Flux)",
 		})
 	}
 

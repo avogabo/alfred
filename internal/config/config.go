@@ -110,7 +110,7 @@ func LoadConfig() Config {
 		AltMountBaseURL:     getFirstEnv("ALFRED_ALTMOUNT_BASE_URL", "WINSTON_ALTMOUNT_BASE_URL"),
 		AltMountAPIKey:      getFirstEnv("ALFRED_ALTMOUNT_API_KEY", "WINSTON_ALTMOUNT_API_KEY"),
 		AltMountPathFrom:    getFirstEnv("ALFRED_ALTMOUNT_PATH_FROM", "WINSTON_ALTMOUNT_PATH_FROM"),
-		AltMountPathTo:      getFirstEnv("ALFRED_ALTMOUNT_PATH_TO", "WINSTON_ALTMOUNT_PATH_TO"),
+		AltMountPathTo:      getFirstEnvWithFallback("/config/.nzbs", "ALFRED_ALTMOUNT_PATH_TO", "WINSTON_ALTMOUNT_PATH_TO"),
 		AltMountStagingDir:  getFirstEnv("ALFRED_ALTMOUNT_STAGING_DIR", "WINSTON_ALTMOUNT_STAGING_DIR"),
 		AltMountStagingPath: getFirstEnv("ALFRED_ALTMOUNT_STAGING_PATH", "WINSTON_ALTMOUNT_STAGING_PATH"),
 		DefaultMode:         mode,

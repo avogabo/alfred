@@ -210,6 +210,38 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
     }
   }
 
+  async function approveAndImportSelected() {
+    if (!selected) return
+    setImporting(true)
+    setError('')
+    try {
+      await fetch(
+        `/api/winston/review/approve?source=${encodeURIComponent(selected.source_nzb_path)}`,
+        { method: 'POST' },
+      )
+      const res = await fetch(
+        `/api/winston/review/import?source=${encodeURIComponent(selected.source_nzb_path)}`,
+        { method: 'POST' },
+      )
+      if (!res.ok) {
+        const body = await res.text()
+        throw new Error(body)
+      }
+      await loadItems()
+      await loadItem(selected.source_nzb_path)
+      onNotify?.('Aprobado y enviado a AltMount con éxito.', 'success')
+      onRefreshGlobalStatus?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al procesar e importar item'
+      setError(msg)
+      onNotify?.(msg, 'error')
+      await loadItems()
+      await loadItem(selected.source_nzb_path)
+    } finally {
+      setImporting(false)
+    }
+  }
+
   async function importSelected() {
     if (!selected) return
     setImporting(true)
@@ -388,17 +420,19 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
                       onClick={() => void approveSelected()}
                       disabled={saving || importing || reloading}
                       id="btn-approve"
+                      title="Marca como aprobado en Winston sin enviar de inmediato a AltMount"
                     >
-                      Aprobar
+                      Solo Aprobar
                     </button>
                     <button
                       className="btn btn-winston"
-                      onClick={() => void importSelected()}
+                      onClick={() => void approveAndImportSelected()}
                       disabled={saving || importing || reloading}
                       id="btn-import"
+                      title="Aprobar y enviar inmediatamente la orden a AltMount"
                     >
                       <Upload size={16} />
-                      <span>{importing ? 'Importando...' : 'Importar a AltMount'}</span>
+                      <span>{importing ? 'Enviando a AltMount...' : 'Aprobar e Importar'}</span>
                     </button>
                     <button
                       className="btn btn-ghost"
@@ -410,6 +444,36 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
                     </button>
                   </div>
                 </div>
+
+                {/* AltMount or Processing Notice Banner */}
+                {(selected.state === 'failed' || selected.reason.toLowerCase().includes('altmount') || selected.reason.toLowerCase().includes('failed') || selected.reason.toLowerCase().includes('error')) && (
+                  <div
+                    className="glass-soft"
+                    style={{
+                      padding: '0.85rem 1rem',
+                      borderRadius: '8px',
+                      borderLeft: '4px solid #ef4444',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.4rem',
+                      marginBottom: '1rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#f87171', fontWeight: 600, fontSize: '0.85rem' }}>
+                      <AlertTriangle size={16} />
+                      <span>Estado de Importación en AltMount</span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#fca5a5', lineHeight: '1.4' }}>
+                      {selected.reason}
+                    </div>
+                    {selected.reason.includes('File does not exist') && (
+                      <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginTop: '0.2rem', lineHeight: '1.4' }}>
+                        💡 <strong>Diagnóstico de ruta remota:</strong> AltMount está en tu servidor (<code>altmount.gabypozo.com.es</code>) y busca el archivo dentro de <code>/config/.nzbs/</code>. Al probar en local desde tu ordenador, el archivo NZB no está subido físicamente al disco del servidor. En producción con Docker compartiendo volúmenes o con NZBs en el servidor, la ingesta es 100% directa.
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Two cards: Current Preview & Quick Correction */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
