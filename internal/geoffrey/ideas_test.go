@@ -151,3 +151,72 @@ func TestScoreLibraryVideo(t *testing.T) {
 		t.Errorf("Expected score 0 for Oppenheimer in comedias navideñas, got %d", score4)
 	}
 }
+
+func TestCocinaMatching(t *testing.T) {
+	app := &App{cfg: config.Config{}}
+	facets := app.extractFacets("cocina")
+
+	// Verify keywords extracted for cocina
+	foundCookingKW := false
+	for _, kw := range facets.ThematicKWIDs {
+		if kw == 1918 || kw == 18293 {
+			foundCookingKW = true
+			break
+		}
+	}
+	if !foundCookingKW {
+		t.Errorf("Expected cooking keyword (1918 or 18293) in facets for 'cocina', got %v", facets.ThematicKWIDs)
+	}
+
+	tmdbByID := map[int]tmdb.Movie{
+		975762: {ID: 975762, Title: "Repostero y chef", OriginalTitle: "À la belle étoile", Release: "2023-02-22"},
+	}
+	tmdbByTitle := map[string]int{
+		"repostero y chef:2023": 975762,
+		"a la belle etoile:2023": 975762,
+	}
+
+	// 1. Repostero y chef (in TMDb curation and matching title/summary)
+	vidChef := plex.Video{
+		RatingKey: "37",
+		Title:     "Repostero y chef",
+		OriginalTitle: "À la belle étoile",
+		Year:      2023,
+		TMDBID:    975762,
+		Genres:    []string{"Drama", "Biografía"},
+		Summary:   "Desde niño, Yazid tiene una gran pasión, la repostería. Criado entre casas de acogida y hogares de acogida, el joven intentará hacer realidad su sueño: trabajar con los mejores pasteleros y convertirse en el mejor.",
+	}
+	scoreChef, reasonChef := scoreLibraryVideo(vidChef, facets, tmdbByID, tmdbByTitle)
+	if scoreChef < 80 {
+		t.Errorf("Expected score >= 80 for Repostero y chef, got %d (reason: %s)", scoreChef, reasonChef)
+	}
+
+	// 2. Heavy (Summary mentions 'cocinero', not in TMDb curation)
+	vidHeavy := plex.Video{
+		RatingKey: "13",
+		Title:     "Heavy",
+		Year:      1995,
+		Genres:    []string{"Drama", "Romance"},
+		Summary:   "Victor es un cocinero introvertido y con sobrepeso que trabaja en la taberna de carretera de su madre.",
+	}
+	scoreHeavy, reasonHeavy := scoreLibraryVideo(vidHeavy, facets, nil, nil)
+	if scoreHeavy < 70 {
+		t.Errorf("Expected score >= 70 for Heavy (summary cocinero), got %d (reason: %s)", scoreHeavy, reasonHeavy)
+	}
+
+	// 3. Vengadores: Endgame (should be 0, NOT suggested for cocina!)
+	vidAvengers := plex.Video{
+		RatingKey: "193",
+		Title:     "Vengadores: Endgame",
+		OriginalTitle: "Avengers: Endgame",
+		Year:      2019,
+		TMDBID:    299534,
+		Genres:    []string{"Action", "Adventure"},
+		Summary:   "Tras el chasquido de Thanos que eliminó a la mitad de la vida en el universo...",
+	}
+	scoreAvengers, _ := scoreLibraryVideo(vidAvengers, facets, tmdbByID, tmdbByTitle)
+	if scoreAvengers != 0 {
+		t.Errorf("Expected score 0 for Vengadores: Endgame in cocina search, got %d", scoreAvengers)
+	}
+}
+

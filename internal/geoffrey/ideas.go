@@ -121,58 +121,199 @@ var genrePlexNames = map[int][]string{
 
 // thematicKeywordMap maps theme tokens to TMDb keyword IDs and search keywords.
 var thematicKeywordMap = map[string][]int{
-	"navidad":     {207317, 6513, 6514, 9799},
-	"navidena":    {207317, 6513, 6514, 9799},
-	"navidenas":   {207317, 6513, 6514, 9799},
-	"navideno":    {207317, 6513, 6514, 9799},
-	"navidenos":   {207317, 6513, 6514, 9799},
-	"christmas":   {207317, 6513, 6514, 9799},
-	"xmas":        {207317, 6513, 6514, 9799},
-	"santa":       {6514, 207317},
-	"claus":       {6514, 207317},
-	"grinch":      {207317},
-	"nieve":       {207317, 2636},
-	"invierno":    {207317, 2636},
-	"halloween":   {3335, 616, 2707},
-	"brujas":      {616},
-	"fantasma":    {2707},
-	"fantasmas":   {2707},
-	"zombie":      {12377, 186565},
-	"zombies":     {12377, 186565},
-	"zombis":      {12377, 186565},
-	"superheroe":  {9715, 180547, 849},
-	"superheroes": {9715, 180547, 849},
-	"vampiro":     {3133},
-	"vampiros":    {3133},
-	"robo":        {10051},
-	"atracos":     {10051},
-	"espia":       {470},
-	"espias":      {470},
-	"espionaje":   {470},
-	"tiempo":      {4379},
-	"viajes":      {4379},
-	"apocalipsis": {4458, 12371},
+	"navidad":        {207317, 6513, 6514, 9799},
+	"navidena":       {207317, 6513, 6514, 9799},
+	"navidenas":      {207317, 6513, 6514, 9799},
+	"navideno":       {207317, 6513, 6514, 9799},
+	"navidenos":      {207317, 6513, 6514, 9799},
+	"christmas":      {207317, 6513, 6514, 9799},
+	"xmas":           {207317, 6513, 6514, 9799},
+	"santa":          {6514, 207317},
+	"claus":          {6514, 207317},
+	"grinch":         {207317},
+	"nieve":          {207317, 2636},
+	"invierno":       {207317, 2636},
+	"halloween":      {3335, 616, 2707},
+	"brujas":         {616},
+	"fantasma":       {2707},
+	"fantasmas":      {2707},
+	"zombie":         {12377, 186565},
+	"zombies":        {12377, 186565},
+	"zombis":         {12377, 186565},
+	"superheroe":     {9715, 180547, 849},
+	"superheroes":    {9715, 180547, 849},
+	"vampiro":        {3133},
+	"vampiros":       {3133},
+	"robo":           {10051},
+	"atracos":        {10051},
+	"espia":          {470},
+	"espias":         {470},
+	"espionaje":      {470},
+	"tiempo":         {4379},
+	"viajes":         {4379},
+	"apocalipsis":    {4458, 12371},
 	"extraterrestre": {9951, 9882},
-	"alien":       {9951},
-	"espacio":     {9882, 14909},
-	"espacial":    {9882, 14909},
-	"espaciales":  {9882, 14909},
+	"alien":          {9951},
+	"espacio":        {9882, 14909},
+	"espacial":       {9882, 14909},
+	"espaciales":     {9882, 14909},
+
+	// Cocina / Culinario / Gastronomía
+	"cocina":       {1918, 18293, 222083, 238259, 291036, 178656},
+	"cocinero":     {1918, 18293},
+	"cocineros":    {1918, 18293},
+	"cocinera":     {1918, 18293},
+	"cocineras":    {1918, 18293},
+	"cocinar":      {1918, 18293},
+	"chef":         {18293, 1918},
+	"chefs":        {18293, 1918},
+	"repostero":    {238259, 291036, 18293, 1918},
+	"reposteros":   {238259, 291036, 18293, 1918},
+	"repostera":    {238259, 291036, 18293, 1918},
+	"reposteras":   {238259, 291036, 18293, 1918},
+	"reposteria":   {238259, 291036, 178656, 1918},
+	"repostería":   {238259, 291036, 178656, 1918},
+	"pastelero":    {238259, 291036, 178656},
+	"pasteleros":   {238259, 291036, 178656},
+	"pasteleria":   {238259, 291036, 178656},
+	"pastelería":   {238259, 291036, 178656},
+	"gastronomia":  {1918, 18293},
+	"gastronomía":  {1918, 18293},
+	"restaurante":  {18293, 1918},
+	"restaurantes": {18293, 1918},
+
+	// Animales / Mascotas
+	"perro":    {15162, 208152, 8841},
+	"perros":   {15162, 208152, 8841},
+	"dalmata":  {158369, 15162},
+	"dalmatas": {158369, 15162},
+	"gato":     {977, 208152},
+	"gatos":    {977, 208152},
+	"mascota":  {208152, 15162, 977},
+	"mascotas": {208152, 15162, 977},
+
+	// Coches / Carreras
+	"coche":         {310324, 286354, 830, 10039},
+	"coches":        {286354, 310324, 830, 10039},
+	"carreras":      {830, 10039},
+	"carrera":       {830, 10039},
+	"automovilismo": {830, 10039},
+	"f1":            {830, 2383},
+
+	// Ajedrez / Videojuegos
+	"ajedrez":     {316},
+	"videojuegos": {282},
+	"gaming":      {282},
+
+	// Música
+	"musica":    {6021, 4344},
+	"música":    {6021, 4344},
+	"concierto": {4344},
+	"banda":     {6021},
+	"rock":      {11700, 6021},
+
+	// Deporte
+	"deporte":    {6075},
+	"deportes":   {6075},
+	"futbol":     {570},
+	"fútbol":     {570},
+	"baloncesto": {6078},
+	"boxeo":      {2702},
+
+	// Legal / Juicios
+	"juicio":   {11038, 33519, 10909},
+	"juicios":  {11038, 33519, 10909},
+	"abogado":  {10909, 33519},
+	"abogados": {10909, 33519},
+	"tribunal": {33519, 11038},
 }
 
 var thematicSynonyms = map[string][]string{
-	"navidad":    {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
-	"navidena":   {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
-	"navidenas":  {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
-	"navideno":   {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
-	"navidenos":  {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
-	"christmas":  {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus"},
-	"nieve":      {"nieve", "snow", "winter", "ice", "frozen"},
-	"invierno":   {"invierno", "winter", "snow", "ice"},
-	"halloween":  {"halloween", "bruja", "scary", "fantasma", "ghost", "monstruo"},
-	"zombie":     {"zombie", "zombies", "zombis", "walking dead", "infectados"},
-	"superheroe": {"superheroe", "superhero", "marvel", "dc", "avengers", "batman", "superman", "spiderman"},
-	"espacio":    {"espacio", "space", "galaxia", "galaxy", "alien", "extraterrestre", "interestelar", "interstellar", "star"},
-	"espacial":   {"espacio", "space", "galaxia", "galaxy", "alien", "extraterrestre", "interestelar", "interstellar", "star"},
+	"navidad":     {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
+	"navidena":    {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
+	"navidenas":   {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
+	"navideno":    {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
+	"navidenos":   {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus", "nochebuena", "reyes magos"},
+	"christmas":   {"navidad", "christmas", "xmas", "noel", "holiday", "santa", "claus", "grinch", "klaus"},
+	"nieve":       {"nieve", "snow", "winter", "ice", "frozen"},
+	"invierno":    {"invierno", "winter", "snow", "ice"},
+	"halloween":   {"halloween", "bruja", "scary", "fantasma", "ghost", "monstruo"},
+	"zombie":      {"zombie", "zombies", "zombis", "walking dead", "infectados"},
+	"superheroe":  {"superheroe", "superhero", "marvel", "dc", "avengers", "batman", "superman", "spiderman"},
+	"espacio":     {"espacio", "space", "galaxia", "galaxy", "alien", "extraterrestre", "interestelar", "interstellar", "star"},
+	"espacial":    {"espacio", "space", "galaxia", "galaxy", "alien", "extraterrestre", "interestelar", "interstellar", "star"},
+	"cocina":      {"cocina", "cocinero", "cocineros", "cocinera", "cocineras", "cocinar", "chef", "chefs", "repostero", "reposteros", "repostera", "reposteras", "reposteria", "repostería", "pastelero", "pasteleros", "pastelera", "pasteleras", "pasteleria", "pastelería", "gastronomia", "gastronomía", "restaurante", "restaurantes", "culinario", "culinaria", "receta", "recetas", "gourmet", "baking", "pastry"},
+	"cocinero":    {"cocina", "cocinero", "cocineros", "cocinera", "cocinar", "chef", "chefs", "repostero", "reposteros", "reposteria", "pastelero", "pasteleros", "pasteleria", "gastronomia", "restaurante"},
+	"cocineros":   {"cocina", "cocinero", "cocineros", "cocinera", "cocinar", "chef", "chefs", "repostero", "reposteros", "reposteria", "pastelero", "pasteleros", "pasteleria", "gastronomia", "restaurante"},
+	"chef":        {"chef", "chefs", "cocina", "cocinero", "cocineros", "repostero", "reposteros", "reposteria", "pastelero", "pasteleros", "pasteleria", "gastronomia", "gourmet", "restaurante"},
+	"chefs":       {"chef", "chefs", "cocina", "cocinero", "cocineros", "repostero", "reposteros", "reposteria", "pastelero", "pasteleros", "pasteleria", "gastronomia", "gourmet", "restaurante"},
+	"repostero":   {"repostero", "reposteros", "repostera", "reposteras", "reposteria", "repostería", "pastelero", "pasteleros", "pasteleria", "pastelería", "chef", "chefs", "cocina", "cocinero", "cocineros", "dulces"},
+	"reposteros":  {"repostero", "reposteros", "repostera", "reposteras", "reposteria", "repostería", "pastelero", "pasteleros", "pasteleria", "pastelería", "chef", "chefs", "cocina", "cocinero", "cocineros", "dulces"},
+	"reposteria":  {"repostero", "reposteros", "repostera", "reposteras", "reposteria", "repostería", "pastelero", "pasteleros", "pasteleria", "pastelería", "chef", "chefs", "cocina", "cocinero", "cocineros", "dulces"},
+	"repostería":  {"repostero", "reposteros", "repostera", "reposteras", "reposteria", "repostería", "pastelero", "pasteleros", "pasteleria", "pastelería", "chef", "chefs", "cocina", "cocinero", "cocineros", "dulces"},
+	"pastelero":   {"pastelero", "pasteleros", "pasteleria", "pastelería", "repostero", "reposteros", "reposteria", "repostería", "chef", "chefs", "cocina", "cocinero"},
+	"pasteleros":  {"pastelero", "pasteleros", "pasteleria", "pastelería", "repostero", "reposteros", "reposteria", "repostería", "chef", "chefs", "cocina", "cocinero"},
+	"pasteleria":  {"pastelero", "pasteleros", "pasteleria", "pastelería", "repostero", "reposteros", "reposteria", "repostería", "chef", "chefs", "cocina", "cocinero"},
+	"pastelería":  {"pastelero", "pasteleros", "pasteleria", "pastelería", "repostero", "reposteros", "reposteria", "repostería", "chef", "chefs", "cocina", "cocinero"},
+	"gastronomia": {"gastronomia", "gastronomía", "cocina", "cocinero", "cocineros", "chef", "chefs", "restaurante", "culinario", "gourmet"},
+	"gastronomía": {"gastronomia", "gastronomía", "cocina", "cocinero", "cocineros", "chef", "chefs", "restaurante", "culinario", "gourmet"},
+	"restaurante": {"restaurante", "restaurantes", "cocina", "chef", "cocinero", "gastronomia"},
+	"perro":       {"perro", "perros", "perrito", "perritos", "dalmata", "dalmatas", "can", "canino", "mascota", "mascotas", "dog"},
+	"perros":      {"perro", "perros", "perrito", "perritos", "dalmata", "dalmatas", "can", "canino", "mascota", "mascotas", "dog"},
+	"dalmata":     {"dalmata", "dalmatas", "perro", "perros", "mascota"},
+	"dalmatas":    {"dalmata", "dalmatas", "perro", "perros", "mascota"},
+	"gato":        {"gato", "gatos", "gatito", "gatitos", "felino", "mascota", "mascotas", "cat"},
+	"gatos":       {"gato", "gatos", "gatito", "gatitos", "felino", "mascota", "mascotas", "cat"},
+	"coche":       {"coche", "coches", "auto", "autos", "automovil", "automoviles", "carrera", "carreras", "car", "cars"},
+	"coches":      {"coche", "coches", "auto", "autos", "automovil", "automoviles", "carrera", "carreras", "car", "cars"},
+	"carreras":    {"carrera", "carreras", "coche", "coches", "auto", "autos", "velocidad", "f1", "racing"},
+	"ajedrez":     {"ajedrez", "chess", "jaque"},
+}
+
+// keywordTranslations provides English equivalents for TMDb keyword searches.
+var keywordTranslations = map[string][]string{
+	"cocina":         {"cooking", "chef"},
+	"cocinero":       {"chef", "cook"},
+	"chef":           {"chef", "cooking"},
+	"repostero":      {"pastry chef", "pastry"},
+	"reposteria":     {"pastry", "baking"},
+	"pastelero":      {"pastry chef"},
+	"pasteleria":     {"pastry", "baking"},
+	"gastronomia":    {"culinary", "cooking"},
+	"restaurante":    {"restaurant"},
+	"perro":          {"dog"},
+	"perros":         {"dog"},
+	"gato":           {"cat"},
+	"gatos":          {"cat"},
+	"mascota":        {"pet"},
+	"mascotas":       {"pet"},
+	"ajedrez":        {"chess"},
+	"carreras":       {"car race", "racing"},
+	"coches":         {"cars"},
+	"musica":         {"music"},
+	"musical":        {"musical"},
+	"deporte":        {"sports"},
+	"deportes":       {"sports"},
+	"futbol":         {"soccer", "football"},
+	"baloncesto":     {"basketball"},
+	"boxeo":          {"boxing"},
+	"juicio":         {"courtroom", "lawyer"},
+	"abogados":       {"lawyer"},
+	"mafia":          {"mafia", "gangster"},
+	"superheroe":     {"superhero"},
+	"superheroes":    {"superhero"},
+	"navidad":        {"christmas"},
+	"halloween":      {"halloween"},
+	"zombie":         {"zombie"},
+	"zombies":        {"zombie"},
+	"vampiro":        {"vampire"},
+	"vampiros":       {"vampire"},
+	"espia":          {"spy", "espionage"},
+	"espias":         {"spy", "espionage"},
+	"apocalipsis":    {"apocalypse"},
+	"alien":          {"alien"},
+	"extraterrestre": {"extraterrestrial"},
+	"espacio":        {"space", "outer space"},
 }
 
 type ExtractedFacets struct {
@@ -212,39 +353,52 @@ func (a *App) SuggestFromIdea(sectionKey, idea string) (IdeaSuggestion, error) {
 	tmdbByTitle := make(map[string]int)
 
 	if a.tmdb != nil && a.tmdb.Enabled() {
-		opts := tmdb.DiscoverMovieOptions{
-			WithGenres:   facets.GenreIDs,
-			WithKeywords: facets.ThematicKWIDs,
-			YearGte:      facets.YearGte,
-			YearLte:      facets.YearLte,
-			Year:         facets.ExactYear,
-			SortBy:       "vote_count.desc",
-			Language:     "es-ES",
-		}
-		movies, err := a.tmdb.DiscoverMovie(opts)
-		if err == nil && len(movies) > 0 {
-			for _, m := range movies {
-				tmdbByID[m.ID] = m
-				registerTMDbTitle(m, tmdbByTitle)
+		// Only run DiscoverMovie if we actually have specific filters (genre, keyword, or year constraint)!
+		// If none are specified, DiscoverMovie without filters returns generic all-time blockbusters (e.g. Avengers, Titanic, Avatar).
+		hasFilters := len(facets.GenreIDs) > 0 || len(facets.ThematicKWIDs) > 0 || facets.ExactYear > 0 || facets.YearGte > 0
+		var movies []tmdb.Movie
+		if hasFilters {
+			opts := tmdb.DiscoverMovieOptions{
+				WithGenres:   facets.GenreIDs,
+				WithKeywords: facets.ThematicKWIDs,
+				YearGte:      facets.YearGte,
+				YearLte:      facets.YearLte,
+				Year:         facets.ExactYear,
+				SortBy:       "vote_count.desc",
+				Language:     "es-ES",
+			}
+			var err error
+			movies, err = a.tmdb.DiscoverMovie(opts)
+			if err == nil && len(movies) > 0 {
+				for _, m := range movies {
+					tmdbByID[m.ID] = m
+					registerTMDbTitle(m, tmdbByTitle)
+				}
 			}
 		}
 
 		// If discover had no keywords or few results, search with keywords or seed tokens
 		if len(movies) < 5 {
 			for _, term := range suggestion.SearchTerms {
-				if kwRes, err := a.tmdb.SearchKeyword(term); err == nil && len(kwRes) > 0 {
-					opts2 := tmdb.DiscoverMovieOptions{
-						WithGenres:   facets.GenreIDs,
-						WithKeywords: []int{kwRes[0].ID},
-						YearGte:      facets.YearGte,
-						YearLte:      facets.YearLte,
-						SortBy:       "vote_count.desc",
-						Language:     "es-ES",
-					}
-					if extra, err := a.tmdb.DiscoverMovie(opts2); err == nil {
-						for _, m := range extra {
-							tmdbByID[m.ID] = m
-							registerTMDbTitle(m, tmdbByTitle)
+				termsToSearch := []string{term}
+				if translations, ok := keywordTranslations[term]; ok {
+					termsToSearch = append(termsToSearch, translations...)
+				}
+				for _, kwTerm := range termsToSearch {
+					if kwRes, err := a.tmdb.SearchKeyword(kwTerm); err == nil && len(kwRes) > 0 {
+						opts2 := tmdb.DiscoverMovieOptions{
+							WithGenres:   facets.GenreIDs,
+							WithKeywords: []int{kwRes[0].ID},
+							YearGte:      facets.YearGte,
+							YearLte:      facets.YearLte,
+							SortBy:       "vote_count.desc",
+							Language:     "es-ES",
+						}
+						if extra, err := a.tmdb.DiscoverMovie(opts2); err == nil {
+							for _, m := range extra {
+								tmdbByID[m.ID] = m
+								registerTMDbTitle(m, tmdbByTitle)
+							}
 						}
 					}
 				}
@@ -439,16 +593,35 @@ func scoreLibraryVideo(
 		}
 	}
 
-	if hasTargetGenre && (hasThematicKeywordInTitle || hasThematicKeywordInSummary) {
+	if hasTargetGenre && hasThematicKeywordInTitle {
+		return 90 + yearPenalty, "library_genre_and_title_thematic_match"
+	}
+
+	if hasTargetGenre && hasThematicKeywordInSummary {
 		return 85 + yearPenalty, "library_genre_thematic_match"
 	}
 
 	if hasThematicKeywordInTitle {
-		return 75 + yearPenalty, "library_title_thematic_match"
+		return 80 + yearPenalty, "library_title_thematic_match"
 	}
 
-	if hasThematicKeywordInSummary && hasTargetGenre {
-		return 70 + yearPenalty, "library_summary_thematic_match"
+	if hasThematicKeywordInSummary {
+		return 75 + yearPenalty, "library_summary_thematic_match"
+	}
+
+	// If prompt only requested genres and this title matches target genre
+	if len(facets.ThematicWords) == 0 && hasTargetGenre {
+		return 70 + yearPenalty, "library_genre_match"
+	}
+
+	// If prompt only requested decade or year and this title matches
+	if len(facets.GenreIDs) == 0 && len(facets.ThematicWords) == 0 {
+		if facets.YearGte > 0 && vid.Year >= facets.YearGte && (facets.YearLte == 0 || vid.Year <= facets.YearLte) {
+			return 70, "library_year_match"
+		}
+		if facets.ExactYear > 0 && vid.Year == facets.ExactYear {
+			return 70, "library_year_match"
+		}
 	}
 
 	return 0, ""
@@ -551,12 +724,6 @@ func (a *App) extractFacets(idea string) ExtractedFacets {
 				seenWords[tok] = true
 				facets.ThematicWords = append(facets.ThematicWords, tok)
 			}
-			for _, syn := range thematicSynonyms[tok] {
-				if !seenWords[syn] {
-					seenWords[syn] = true
-					facets.ThematicWords = append(facets.ThematicWords, syn)
-				}
-			}
 		} else if len(tok) >= 4 && !isStopWord(tok) {
 			if !seenWords[tok] {
 				seenWords[tok] = true
@@ -570,7 +737,7 @@ func (a *App) extractFacets(idea string) ExtractedFacets {
 
 func isStopWord(s string) bool {
 	switch s {
-	case "para", "como", "pero", "sobre", "entre", "este", "esta", "estos", "estas", "todos", "todas", "peliculas", "pelicula", "peli", "pelis", "series", "serie", "cine", "film", "films", "movie", "movies", "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas":
+	case "para", "como", "pero", "sobre", "entre", "este", "esta", "estos", "estas", "todos", "todas", "peliculas", "pelicula", "peli", "pelis", "series", "serie", "cine", "film", "films", "movie", "movies", "de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas", "con", "sin", "por", "que", "mas", "muy", "mi", "mis", "tu", "tus", "su", "sus":
 		return true
 	default:
 		return false
@@ -580,19 +747,22 @@ func isStopWord(s string) bool {
 func fallbackScoreCandidate(item plex.Video, ideaTokens []string, term string, termIndex int) int {
 	title := normalizeIdea(item.Title)
 	score := 0
-	if termIndex == 0 {
-		score += 20
-	}
+	matched := false
 	if strings.Contains(title, term) {
-		score += 30
+		score += 40
+		matched = true
 	}
 	for _, token := range ideaTokens {
 		if token == "" {
 			continue
 		}
 		if strings.Contains(title, token) {
-			score += 18
+			score += 30
+			matched = true
 		}
+	}
+	if !matched {
+		return 0
 	}
 	if item.Year >= 1990 {
 		score += 4
