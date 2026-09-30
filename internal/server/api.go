@@ -135,6 +135,7 @@ func (s *Server) Routes() http.Handler {
 	registerDual(mux, "/api/winston/review/approve", "/api/review/approve", s.handleReviewApprove)
 	registerDual(mux, "/api/winston/review/import", "/api/review/import", s.handleReviewImport)
 	registerDual(mux, "/api/winston/review/reset", "/api/review/reset", s.handleReviewReset)
+	registerDual(mux, "/api/winston/review/clear", "/api/review/clear", s.handleReviewClear)
 	registerDual(mux, "/api/winston/review/rescan", "/api/review/rescan", s.handleReviewRescan)
 	registerDual(mux, "/api/winston/filebot/status", "/api/filebot/status", s.handleFileBotStatus)
 
@@ -301,6 +302,7 @@ func (s *Server) sendReviewItems(w http.ResponseWriter) {
 		writeJSON(w, http.StatusOK, map[string]any{"items": []any{}})
 		return
 	}
+	state.PruneMissing()
 	items := make([]ReviewListItem, 0, len(state.Data.Imported))
 	for source, rec := range state.Data.Imported {
 		reason := ""
@@ -474,6 +476,23 @@ func (s *Server) handleReviewReset(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+func (s *Server) handleReviewClear(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
+		return
+	}
+	state := s.winstonApp.State()
+	if state == nil {
+		writeError(w, http.StatusInternalServerError, "state store unavailable")
+		return
+	}
+	if err := state.ClearAll(); err != nil {
+		writeError(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	s.sendReviewItems(w)
+}
+
 func (s *Server) handleReviewRescan(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		writeError(w, http.StatusMethodNotAllowed, "method not allowed")
@@ -485,6 +504,11 @@ func (s *Server) handleReviewRescan(w http.ResponseWriter, r *http.Request) {
 	if runner == nil || proc == nil || state == nil {
 		writeError(w, http.StatusInternalServerError, "processor unavailable")
 		return
+	}
+	if r.URL.Query().Get("clear") == "true" {
+		_ = state.ClearAll()
+	} else {
+		state.PruneMissing()
 	}
 	nzbs, err := runner.ListNZBs()
 	if err != nil {

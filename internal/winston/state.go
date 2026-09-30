@@ -76,3 +76,33 @@ func (s *StateStore) Save() error {
 	}
 	return os.WriteFile(s.path, b, 0644)
 }
+
+func (s *StateStore) ClearAll() error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.Data.Imported = map[string]ImportedRecord{}
+	b, err := json.MarshalIndent(s.Data, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(s.path, b, 0644)
+}
+
+func (s *StateStore) PruneMissing() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	pruned := 0
+	for path := range s.Data.Imported {
+		if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+			delete(s.Data.Imported, path)
+			pruned++
+		}
+	}
+	if pruned > 0 {
+		b, err := json.MarshalIndent(s.Data, "", "  ")
+		if err == nil {
+			_ = os.WriteFile(s.path, b, 0644)
+		}
+	}
+	return pruned
+}

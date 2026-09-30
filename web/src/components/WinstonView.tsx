@@ -9,6 +9,7 @@ import {
   RefreshCw,
   Search,
   Sparkles,
+  Trash2,
   Tv,
   Upload,
   Wand2,
@@ -160,6 +161,46 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
     }
   }
 
+  async function clearAndRescan() {
+    setRescanning(true)
+    setError('')
+    try {
+      const res = await fetch('/api/winston/review/rescan?clear=true', { method: 'POST' })
+      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      setItems(data.items || [])
+      setSelectedSource(data.items?.[0]?.source_nzb_path || '')
+      onNotify?.('Lista reseteada y carpeta reanalizada con éxito.', 'success')
+      onRefreshGlobalStatus?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al limpiar y reanalizar'
+      setError(msg)
+      onNotify?.(msg, 'error')
+    } finally {
+      setRescanning(false)
+    }
+  }
+
+  async function clearAllItems() {
+    if (!window.confirm('¿Estás seguro de que deseas vaciar toda la lista de Winston?')) return
+    setLoading(true)
+    setError('')
+    try {
+      const res = await fetch('/api/winston/review/clear', { method: 'POST' })
+      if (!res.ok) throw new Error(await res.text())
+      setItems([])
+      setSelectedSource('')
+      onNotify?.('Lista de Winston vaciada correctamente.', 'success')
+      onRefreshGlobalStatus?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al vaciar la lista'
+      setError(msg)
+      onNotify?.(msg, 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   async function applyCorrection(payload: Record<string, unknown>) {
     if (!selected) return
     setSaving(true)
@@ -278,6 +319,25 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
     }
   }
 
+  async function resetSelected() {
+    if (!selected) return
+    try {
+      const res = await fetch(
+        `/api/winston/review/reset?source=${encodeURIComponent(selected.source_nzb_path)}`,
+        { method: 'POST' },
+      )
+      if (!res.ok) throw new Error(await res.text())
+      setSelectedSource('')
+      await loadItems()
+      onNotify?.('Item descartado de la lista de revisión.', 'success')
+      onRefreshGlobalStatus?.()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al descartar item'
+      setError(msg)
+      onNotify?.(msg, 'error')
+    }
+  }
+
   const reviewCount = items.filter(
     (item) => item.state === 'needs_review' || item.state === 'detected',
   ).length
@@ -337,9 +397,21 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
           onClick={() => void rescanItems()}
           disabled={loading || rescanning || saving || importing || reloading}
           id="winston-rescan-btn"
+          title="Prunea archivos borrados y detecta nuevos NZBs presentes en la carpeta"
         >
-          <Wand2 size={16} className={rescanning ? 'spin' : ''} />
-          <span>{rescanning ? 'Escaneando NZBs...' : 'Buscar nuevos NZB'}</span>
+          <RefreshCw size={15} className={rescanning ? 'spin' : ''} />
+          <span>{rescanning ? 'Reanalizando...' : 'Volver a analizar'}</span>
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => void clearAndRescan()}
+          disabled={loading || rescanning || saving || importing || reloading}
+          id="winston-clear-rescan-btn"
+          title="Elimina todos los items antiguos/fallidos y reanaliza la carpeta desde cero"
+          style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#fca5a5' }}
+        >
+          <Trash2 size={15} />
+          <span>Limpiar y reanalizar</span>
         </button>
       </div>
 
@@ -348,9 +420,21 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
         <aside className="glass" style={{ padding: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>NZBs ({filtered.length})</h3>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
-              {loading ? 'Cargando...' : `${filtered.length} visibles`}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {items.length > 0 && (
+                <button
+                  className="btn btn-ghost"
+                  style={{ fontSize: '0.72rem', padding: '0.15rem 0.45rem', color: '#f87171' }}
+                  onClick={() => void clearAllItems()}
+                  title="Vaciar la lista completa de Winston"
+                >
+                  Vaciar lista
+                </button>
+              )}
+              <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+                {loading ? 'Cargando...' : `${filtered.length} visibles`}
+              </span>
+            </div>
           </div>
 
           <div className="item-list-container">
@@ -441,6 +525,14 @@ export function WinstonView({ onNotify, onRefreshGlobalStatus }: WinstonViewProp
                       title="Recargar item"
                     >
                       <RefreshCw size={16} className={reloading ? 'spin' : ''} />
+                    </button>
+                    <button
+                      className="btn btn-ghost"
+                      onClick={() => void resetSelected()}
+                      disabled={saving || importing || reloading}
+                      title="Eliminar de la lista de revisión"
+                    >
+                      <Trash2 size={16} color="#f87171" />
                     </button>
                   </div>
                 </div>
