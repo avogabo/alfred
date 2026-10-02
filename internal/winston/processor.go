@@ -61,10 +61,15 @@ func (p *ImportProcessor) importOneInternal(ctx context.Context, sourceNZB strin
 		relativePath = filepath.ToSlash(filepath.Dir(relativePath))
 	}
 
-	if !force && preview.State == StateNeedsReview && !(preview.Confidence == ConfidenceMedium && p.cfg.AutoImportMedium) {
-		log.Printf("winston: review required for %s proposed=%s reason=%s", sourceNZB, preview.ProposedPath, preview.Reason)
+	// Determine if item should be auto-imported or requires human review
+	isHigh := preview.Confidence == ConfidenceHigh || preview.State == StateApproved
+	isMedium := preview.Confidence == ConfidenceMedium
+	shouldAutoImport := (isHigh && p.cfg.AutoImportHigh) || (isMedium && p.cfg.AutoImportMedium)
+
+	if !force && (!shouldAutoImport || preview.State == StateNeedsReview) {
+		log.Printf("winston: review required for %s proposed=%s reason=%s confidence=%s", sourceNZB, preview.ProposedPath, preview.Reason, preview.Confidence)
 		if p.state != nil {
-			_ = p.state.Put(sourceNZB, ImportedRecord{RelativePath: preview.ProposedPath, Status: "review", State: preview.State, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
+			_ = p.state.Put(sourceNZB, ImportedRecord{RelativePath: preview.ProposedPath, Status: "review", State: StateNeedsReview, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
 		}
 		return nil
 	}
@@ -98,6 +103,9 @@ func (p *ImportProcessor) importOneInternal(ctx context.Context, sourceNZB strin
 		if p.state != nil {
 			_ = p.state.Put(sourceNZB, ImportedRecord{QueueID: resp.QueueID, RelativePath: relativePath, Status: "submitted", State: StateImporting, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
 		}
+		if p.cfg.AutoRefreshPlex && p.plex != nil {
+			_ = p.plex.RefreshPath(relativePath)
+		}
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
@@ -120,8 +128,12 @@ func (p *ImportProcessor) importOneInternal(ctx context.Context, sourceNZB strin
 	if p.state != nil {
 		_ = p.state.Put(sourceNZB, ImportedRecord{QueueID: resp.QueueID, RelativePath: item.TargetPath, Status: item.Status, State: StateImported, Confidence: preview.Confidence, Metadata: preview.Metadata, Preview: preview})
 	}
-	if p.plex != nil {
-		_ = p.plex.RefreshPath(item.TargetPath)
+	if p.cfg.AutoRefreshPlex && p.plex != nil {
+		targetToRefresh := item.TargetPath
+		if targetToRefresh == "" {
+			targetToRefresh = relativePath
+		}
+		_ = p.plex.RefreshPath(targetToRefresh)
 	}
 
 	select {

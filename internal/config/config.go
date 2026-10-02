@@ -28,7 +28,9 @@ type Config struct {
 	AltMountStagingPath string        `json:"altmount_staging_path"`
 	DefaultMode         string        `json:"default_mode"`
 	SleepBetweenImports time.Duration `json:"sleep_between_imports"`
+	AutoImportHigh      bool          `json:"auto_import_high"`
 	AutoImportMedium    bool          `json:"auto_import_medium"`
+	AutoRefreshPlex     bool          `json:"auto_refresh_plex"`
 	MoviesTemplate      string        `json:"movies_template"`
 	SeriesTemplate      string        `json:"series_template"`
 	FileBotMovieFormat  string        `json:"filebot_movie_format"`
@@ -65,7 +67,9 @@ type SettingsDTO struct {
 	AltMountStagingPath string `json:"altmount_staging_path"`
 	DefaultMode         string `json:"default_mode"`
 	SleepBetweenImports string `json:"sleep_between_imports"`
+	AutoImportHigh      bool   `json:"auto_import_high"`
 	AutoImportMedium    bool   `json:"auto_import_medium"`
+	AutoRefreshPlex     bool   `json:"auto_refresh_plex"`
 	MoviesTemplate      string `json:"movies_template"`
 	SeriesTemplate      string `json:"series_template"`
 	FileBotMovieFormat  string `json:"filebot_movie_format"`
@@ -93,7 +97,9 @@ func LoadConfig() Config {
 	}
 
 	mode := getFirstEnvWithFallback("filebot", "ALFRED_DEFAULT_MODE", "WINSTON_DEFAULT_MODE")
+	autoImportHigh := getFirstEnvWithFallback("true", "ALFRED_AUTOIMPORT_HIGH", "WINSTON_AUTOIMPORT_HIGH") != "false"
 	autoImportMedium := getFirstEnvWithFallback("true", "ALFRED_AUTOIMPORT_MEDIUM", "WINSTON_AUTOIMPORT_MEDIUM") != "false"
+	autoRefreshPlex := getFirstEnvWithFallback("true", "ALFRED_AUTO_REFRESH_PLEX", "PLEX_AUTO_REFRESH") != "false"
 
 	dataDir := getFirstEnvWithFallback("/config", "ALFRED_DATA_DIR", "GEOFFREY_DATA_DIR")
 	defaultFileBotHome := filepath.Join(dataDir, "filebot")
@@ -115,7 +121,9 @@ func LoadConfig() Config {
 		AltMountStagingPath: getFirstEnv("ALFRED_ALTMOUNT_STAGING_PATH", "WINSTON_ALTMOUNT_STAGING_PATH"),
 		DefaultMode:         mode,
 		SleepBetweenImports: sleep,
+		AutoImportHigh:      autoImportHigh,
 		AutoImportMedium:    autoImportMedium,
+		AutoRefreshPlex:     autoRefreshPlex,
 		MoviesTemplate:      getFirstEnvWithFallback("Peliculas/{quality}/{alpha}/{title} ({year})", "ALFRED_MOVIES_TEMPLATE", "WINSTON_MOVIES_TEMPLATE"),
 		SeriesTemplate:      getFirstEnvWithFallback("Series/{alpha}/{series}/Temporada {season}/{series} - {episode}", "ALFRED_SERIES_TEMPLATE", "WINSTON_SERIES_TEMPLATE"),
 		FileBotMovieFormat:  getFirstEnvWithFallback(`Peliculas/{vf}/{az}/{n} ({y}) {"{tmdb-"+id+"}"}/{n} ({y}) {"{tmdb-"+id+"}"}`, "ALFRED_FILEBOT_FORMAT_MOVIE", "WINSTON_FILEBOT_FORMAT_MOVIE"),
@@ -169,7 +177,9 @@ func NewSettingsStore(configDir string, fallback Config) (*SettingsStore, error)
 		AltMountStagingPath: fallback.AltMountStagingPath,
 		DefaultMode:         fallback.DefaultMode,
 		SleepBetweenImports: fallback.SleepBetweenImports.String(),
+		AutoImportHigh:      fallback.AutoImportHigh,
 		AutoImportMedium:    fallback.AutoImportMedium,
+		AutoRefreshPlex:     fallback.AutoRefreshPlex,
 		MoviesTemplate:      fallback.MoviesTemplate,
 		SeriesTemplate:      fallback.SeriesTemplate,
 		FileBotMovieFormat:  fallback.FileBotMovieFormat,
@@ -257,7 +267,9 @@ func (s *SettingsStore) ApplyToConfig(cfg Config) Config {
 			cfg.SleepBetweenImports = d
 		}
 	}
+	cfg.AutoImportHigh = data.AutoImportHigh
 	cfg.AutoImportMedium = data.AutoImportMedium
+	cfg.AutoRefreshPlex = data.AutoRefreshPlex
 	if data.MoviesTemplate != "" {
 		cfg.MoviesTemplate = data.MoviesTemplate
 	}

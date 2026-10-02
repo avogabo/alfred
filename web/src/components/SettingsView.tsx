@@ -30,7 +30,9 @@ type SettingsDTO = {
   altmount_staging_path: string
   default_mode: string
   sleep_between_imports: string
+  auto_import_high: boolean
   auto_import_medium: boolean
+  auto_refresh_plex: boolean
   movies_template: string
   series_template: string
   filebot_movie_format: string
@@ -77,7 +79,9 @@ const defaultSettings: SettingsDTO = {
   altmount_staging_path: '',
   default_mode: 'filebot',
   sleep_between_imports: '3s',
+  auto_import_high: true,
   auto_import_medium: true,
+  auto_refresh_plex: true,
   movies_template: 'Peliculas/{quality}/{alpha}/{title} ({year})',
   series_template: 'Series/{alpha}/{series}/Temporada {season}/{series} - {episode}',
   filebot_movie_format: 'Peliculas/{vf}/{az}/{n} ({y}) {"{tmdb-"+id+"}"}/{n} ({y}) {"{tmdb-"+id+"}"}',
@@ -299,6 +303,23 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
               💡 <em>Traducción para refrescar contenido al instante en Plex. Déjalo vacío si Alfred y Plex usan las mismas rutas.</em>
             </small>
           </div>
+
+          <div className="glass-soft" style={{ padding: '0.85rem', marginTop: '0.5rem' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={settings.auto_refresh_plex}
+                onChange={(e) => setSettings({ ...settings, auto_refresh_plex: e.target.checked })}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <div>
+                <strong style={{ color: '#fff' }}>Actualización automática de biblioteca en Plex</strong>
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem', lineHeight: '1.4' }}>
+                  Escanea y actualiza la biblioteca de Plex al instante cada vez que AltMount monta una nueva película o serie.
+                </div>
+              </div>
+            </label>
+          </div>
         </div>
 
         {/* AltMount Card (Winston) */}
@@ -374,6 +395,23 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
               onChange={(e) => setSettings({ ...settings, sleep_between_imports: e.target.value })}
               placeholder="3s"
             />
+          </div>
+
+          <div className="glass-soft" style={{ padding: '0.85rem' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={settings.auto_import_high}
+                onChange={(e) => setSettings({ ...settings, auto_import_high: e.target.checked })}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <div>
+                <strong style={{ color: '#fff' }}>Autoimportar coincidencias claras a AltMount</strong>
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem', lineHeight: '1.4' }}>
+                  Si la coincidencia es clara (Confianza Alta / High), se envía a AltMount sin requerir aprobación manual.
+                </div>
+              </div>
+            </label>
           </div>
         </div>
 
@@ -605,14 +643,50 @@ export function SettingsView({ onNotify, onRefreshGlobalStatus }: SettingsViewPr
             />
           </div>
 
-          <div className="glass-soft" style={{ padding: '0.85rem' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+          <div className="glass-soft" style={{ padding: '0.85rem', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={settings.auto_import_high}
+                onChange={(e) => setSettings({ ...settings, auto_import_high: e.target.checked })}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <div>
+                <strong style={{ color: '#fff' }}>Autoimportar coincidencias claras (Alta confianza / High)</strong>
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                  Envía a AltMount automáticamente sin esperar revisión manual.
+                </div>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
               <input
                 type="checkbox"
                 checked={settings.auto_import_medium}
                 onChange={(e) => setSettings({ ...settings, auto_import_medium: e.target.checked })}
+                style={{ marginTop: '0.2rem' }}
               />
-              <span>Autoimportar elementos de confianza 'medium' sin conflicto</span>
+              <div>
+                <strong style={{ color: '#fff' }}>Autoimportar elementos con confianza 'medium' sin conflicto</strong>
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                  Si no hay ambigüedades, procesa automáticamente elementos medios.
+                </div>
+              </div>
+            </label>
+
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input
+                type="checkbox"
+                checked={settings.auto_refresh_plex}
+                onChange={(e) => setSettings({ ...settings, auto_refresh_plex: e.target.checked })}
+                style={{ marginTop: '0.2rem' }}
+              />
+              <div>
+                <strong style={{ color: '#fff' }}>Actualizar Plex automáticamente tras importar</strong>
+                <div style={{ color: 'var(--text-dim)', fontSize: '0.75rem', marginTop: '0.2rem' }}>
+                  Lanza refresh en Plex al completarse el montaje en AltMount.
+                </div>
+              </div>
             </label>
           </div>
         </div>

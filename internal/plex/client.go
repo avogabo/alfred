@@ -108,14 +108,46 @@ func (c *Client) Libraries() ([]Library, error) {
 }
 
 func (c *Client) RefreshPath(targetPath string) error {
-	if !c.Configured() || targetPath == "" {
+	if !c.Configured() {
 		return nil
+	}
+	if targetPath == "" || targetPath == "." {
+		return c.RefreshAll()
 	}
 	parent := filepath.Dir(targetPath)
 	parent = c.translatePath(parent)
+	if parent == "." || parent == "" || parent == "/" {
+		return c.RefreshAll()
+	}
+
 	u := c.baseURL + "/library/sections/all/refresh"
 	q := url.Values{}
 	q.Set("path", parent)
+	q.Set("X-Plex-Token", c.token)
+	u += "?" + q.Encode()
+
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return err
+	}
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return c.RefreshAll()
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return c.RefreshAll()
+	}
+	log.Printf("alfred: plex refresh requested for %s", parent)
+	return nil
+}
+
+func (c *Client) RefreshAll() error {
+	if !c.Configured() {
+		return nil
+	}
+	u := c.baseURL + "/library/sections/all/refresh"
+	q := url.Values{}
 	q.Set("X-Plex-Token", c.token)
 	u += "?" + q.Encode()
 
@@ -129,9 +161,9 @@ func (c *Client) RefreshPath(targetPath string) error {
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("plex refresh failed: %s", resp.Status)
+		return fmt.Errorf("plex refresh all failed: %s", resp.Status)
 	}
-	log.Printf("alfred: plex refresh requested for %s", parent)
+	log.Printf("alfred: plex full library refresh triggered successfully")
 	return nil
 }
 
